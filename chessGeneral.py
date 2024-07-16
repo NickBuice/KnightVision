@@ -195,48 +195,6 @@ class StartChessGame:
             logging.info("Board:\n%s", self.old_np_board)
         self.np_board = self.old_np_board
 
-    def update_board_and_waiting_move_stack_replaced(self): # triangle problem is most apparent
-        saved_old_np_board = self.old_np_board.copy()
-        file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
-        counts = count_pieces(self.np_board)
-        old_counts = count_pieces(self.old_np_board)
-        removed, added, replaced = [], [], []
-        for i, (raw_board_row, old_raw_board_row) in enumerate(zip(self.np_board, self.old_np_board)):
-            for j, (raw_board_value, old_raw_board_value) in enumerate(zip(raw_board_row, old_raw_board_row)):
-                color = 1 <= raw_board_value < 7
-                old_color = 1 <= old_raw_board_value < 7
-                if raw_board_value != 0 and old_raw_board_value != 0:
-                    if color != old_color:
-                        added.append((i, j, raw_board_value, True))
-                    elif raw_board_value != old_raw_board_value:
-                        replaced.append((i, j, raw_board_value, old_raw_board_value))
-                if raw_board_value != 0 and old_raw_board_value == 0:
-                    added.append((i, j, raw_board_value, False))
-                if raw_board_value == 0 and old_raw_board_value != 0:
-                    removed.append((i, j, old_raw_board_value))
-        for (old_i, old_j, old_piece) in removed:  # fix for promotion
-            for (i, j, piece, capture) in added:
-                if old_piece == piece:
-                    if counts[piece] == old_counts[piece]:
-                        swap_variable = 0 if capture else self.old_np_board[i][j]
-                        # swap_variable = self.old_np_board[i][j]
-                        self.old_np_board[i][j] = self.old_np_board[old_i][old_j]
-                        self.old_np_board[old_i][old_j] = swap_variable
-                        self.waiting_moves.append(file_names[old_j] + str(8 - old_i) + file_names[j] + str(8 - i))
-                        logging.info("Removed: %s, Added: %s, Move: %s", (old_i, old_j, old_piece),
-                                     (i, j, piece, capture), self.waiting_moves[-1])
-        for k, (i, j, new_piece, old_piece) in enumerate(replaced[:-1]):
-            for (i_, j_, new_piece_, old_piece_) in replaced[k + 1:]:
-                print(new_piece == old_piece_ and new_piece_ == old_piece)
-                if new_piece == old_piece_ and new_piece_ == old_piece:
-                    self.old_np_board[i][j] = new_piece
-                    self.old_np_board[i_][j_] = new_piece_
-                    logging.info("Replaced: %s %s", (i, j, new_piece, old_piece), (i_, j_, new_piece_, old_piece_))
-        self.np_board = self.old_np_board
-        if not np.array_equal(self.np_board, saved_old_np_board):
-            logging.info("Board:\n%s", self.old_np_board)
-        # TO DO: sort move_wait_list?
-
     def update_board_and_waiting_move_stack_swap(self):  # PROBLEM: pieces disappear then reappear, captures buggy
         saved_old_np_board = self.old_np_board.copy()
         file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
@@ -284,47 +242,6 @@ class StartChessGame:
         else:
             pool.submit(show_same_display)
         self.np_board = self.old_np_board
-        # TO DO: sort move_wait_list?
-
-    def update_board_and_waiting_move_stack_classless_one(self):  # chaos
-        saved_old_np_board = self.old_np_board.copy()
-        file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
-        counts = count_pieces(self.np_board)
-        old_counts = count_pieces(self.old_np_board)
-        removed, added, replaced = [], [], []
-        for i, (raw_board_row, old_raw_board_row) in enumerate(zip(self.np_board, self.old_np_board)):
-            for j, (raw_board_value, old_raw_board_value) in enumerate(zip(raw_board_row, old_raw_board_row)):
-                color = 1 <= raw_board_value < 7
-                old_color = 1 <= old_raw_board_value < 7
-                if raw_board_value != 0 and old_raw_board_value != 0:
-                    if color != old_color:
-                        added.append((i, j, color, True))
-                    # elif raw_board_value != old_raw_board_value:
-                    #     replaced.append((i, j, raw_board_value, old_raw_board_value))
-                if raw_board_value != 0 and old_raw_board_value == 0:
-                    added.append((i, j, color, False))
-                if raw_board_value == 0 and old_raw_board_value != 0:
-                    removed.append((i, j, old_color))
-        for (old_i, old_j, old_piece) in removed:  # fix for promotion
-            for (i, j, piece, capture) in added:
-                if old_piece == piece:
-                    swap_variable = 0 if capture else self.old_np_board[i][j]
-                    # swap_variable = self.old_np_board[i][j]
-                    self.old_np_board[i][j] = self.old_np_board[old_i][old_j]
-                    self.old_np_board[old_i][old_j] = swap_variable
-                    self.waiting_moves.append(file_names[old_j] + str(8 - old_i) + file_names[j] + str(8 - i))
-                    logging.info("Removed: %s, Added: %s, Move: %s", (old_i, old_j, old_piece),
-                                 (i, j, piece, capture), self.waiting_moves[-1])
-        # for k, (i, j, new_piece, old_piece) in enumerate(replaced[:-1]):
-        #     for (i_, j_, new_piece_, old_piece_) in replaced[k + 1:]:
-        #         print(new_piece == old_piece_ and new_piece_ == old_piece)
-        #         if new_piece == old_piece_ and new_piece_ == old_piece:
-        #             self.old_np_board[i][j] = new_piece
-        #             self.old_np_board[i_][j_] = new_piece_
-        #             logging.info("Replaced: %s %s", (i, j, new_piece, old_piece), (i_, j_, new_piece_, old_piece_))
-        self.np_board = self.old_np_board
-        if not np.array_equal(self.np_board, saved_old_np_board):
-            logging.info("Board:\n%s", self.old_np_board)
         # TO DO: sort move_wait_list?
 
     def update_board_and_waiting_move_stack_classless_two(self):  # decent but mixes same color pieces sometimes
