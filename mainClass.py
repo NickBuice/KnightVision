@@ -46,8 +46,8 @@ while video_capture.isOpened():  # rework this logic to be cleaner
         game.update_saved_counts()
         if game.board_has_changed():
             game.update_board_and_waiting_move_stack_two()
-        else:
-            chessGeneral.pool.submit(chessGeneral.show_same_display)
+        # else:
+        #     chessGeneral.pool.submit(chessGeneral.show_same_display)
         game.update_move_stack()
         if chess_move_to_be_pushed := game.moves[0]:
             if chess_move_to_be_pushed in [chess.Move.uci(legal_move) for legal_move in game.chessboard.legal_moves]:

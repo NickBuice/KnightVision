@@ -388,8 +388,8 @@ class StartChessGame:
         if not np.array_equal(self.old_np_board, saved_old_np_board):
             pool.submit(show_svg_display, write_fen(self.old_np_board), 600)
             logging.info("Board:\n%s", self.old_np_board)
-        else:
-            pool.submit(show_same_display)
+        # else:
+        #     pool.submit(show_same_display)
         self.np_board = self.old_np_board
 
 
