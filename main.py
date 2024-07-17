@@ -20,7 +20,7 @@ corner_prediction_model = YOLO('C://PythonStuff/ChessScanner/CloudModels/BoardMo
 piece_prediction_model = YOLO('C://PythonStuff/ChessScanner/CloudModels/BestYet/train/weights/best.pt')
 on_startup = True
 start, count = time.time(), 0
-while video_capture.isOpened():  # rework this logic to be cleaner
+while video_capture.isOpened():  # todo rework this logic to be cleaner
     count += 1
     _, frame = video_capture.read()
     corrected_frame = chessGeneral.image_resize(frame, image_size)

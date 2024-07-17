@@ -76,7 +76,7 @@ class StartChessGame:
         self.np_board, self.old_np_board = np.zeros((8, 8)), np.zeros((8, 8))
         self.board_stack, self.moves = [[] for _ in range(board_delay)], [None for _ in range(-1 * pgn_delay)]
 
-    def update_move_stack(self):  # error a1a1 not in move_stack[move_stack.index(comparison_move)]
+    def update_move_stack(self):  # TODO error a1a1 not in move_stack[move_stack.index(comparison_move)]
         del self.moves[0]
         self.moves.append(None if not self.waiting_moves else self.waiting_moves.pop(0))
         for move_number, move in enumerate(self.moves[:-1]):
@@ -89,7 +89,7 @@ class StartChessGame:
     def board_has_changed(self):
         return not np.array_equal(self.np_board, self.old_np_board)
 
-    def update_board_and_waiting_move_stack(self):  # Best so far, break into smaller functions
+    def update_board_and_waiting_move_stack(self):  # Best so far
         saved_old_np_board = self.old_np_board.copy()
         self.board_stack.pop(0), self.board_stack.append([])
         file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
