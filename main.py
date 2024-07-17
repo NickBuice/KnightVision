@@ -6,8 +6,7 @@ import chessCorners
 import chessLocations
 import chessGeneral
 import time
-
-
+import os
 
 
 pgn_file = "C:/Users/nbuic/OneDrive/Desktop/TestingPGN/TEST.pgn"
@@ -16,8 +15,9 @@ conversion_matrix, rotation = None, False
 game = chessGeneral.StartChessGame()
 logging.basicConfig(filename='./misc/example.log', filemode='w', level=logging.DEBUG)
 video_capture = cv2.VideoCapture(1)
-corner_prediction_model = YOLO('C://PythonStuff/ChessScanner/CloudModels/BoardModels/NanoA100_BEST/train/weights/best.pt')
-piece_prediction_model = YOLO('C://PythonStuff/ChessScanner/CloudModels/BestYet/train/weights/best.pt')
+os.chdir("C://PythonStuff/Projects/ChessScanner")
+corner_prediction_model = YOLO('./CloudModels/BoardModels/NanoA100_BEST/train/weights/best.pt')
+piece_prediction_model = YOLO('./CloudModels/BestYet/train/weights/best.pt')
 on_startup = True
 start, count = time.time(), 0
 while video_capture.isOpened():  # todo rework this logic to be cleaner
@@ -31,13 +31,15 @@ while video_capture.isOpened():  # todo rework this logic to be cleaner
         corner_results = corner_prediction_model.predict(corrected_frame, imgsz=image_size, verbose=False)
         conversion_matrix, rotation = chessCorners.find_chessboard_corners(corrected_frame, corner_results)
         game = chessGeneral.StartChessGame()
-        img, game.old_np_board = chessLocations.locate_pieces(corrected_frame, piece_results, conversion_matrix, rotation, game.np_board)
-        chessGeneral.pool.submit(chessGeneral.show_svg_display, chessGeneral.write_fen(game.np_board), 600)
+        img, game.old_np_board = chessLocations.locate_pieces(corrected_frame, piece_results, conversion_matrix,
+                                                              rotation, game.new_np_board)
+        chessGeneral.pool.submit(chessGeneral.show_svg_display, chessGeneral.write_fen(game.new_np_board), 600)
         chessGeneral.pool.submit(chessGeneral.write_pgn_to_file, pgn_file, game.game)
         logging.info("--- Resetting calibration ---")
         on_startup = False
     else:
-        img, game.old_np_board = chessLocations.locate_pieces(corrected_frame, piece_results, conversion_matrix, rotation, game.np_board)
+        img, game.old_np_board = chessLocations.locate_pieces(corrected_frame, piece_results, conversion_matrix,
+                                                              rotation, game.new_np_board)
         if game.board_has_changed():
             game.update_board_and_waiting_move_stack()
         else:

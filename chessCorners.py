@@ -2,11 +2,9 @@ import numpy as np
 import cv2
 
 
-
-
 def find_intersections(line_endpoints):
     intersections = []
-    parallel_threshold = 45 * np.pi/180 # Magic Number
+    parallel_threshold = 45 * np.pi/180  # Magic Number
     slopes = [(pt[1][1] - pt[0][1]) / ((pt[1][0] - pt[0][0]) + .0001) for pt in line_endpoints]  # Magic number
     y_intercepts = [pt[0][1] - slope*pt[0][0] for slope, pt in zip(slopes, line_endpoints)]
     for i, (slope1, y_intercept1) in enumerate(zip(slopes, y_intercepts)):
@@ -52,8 +50,8 @@ def mark_corners(segmentation):
             b = np.sin(theta)
             x0 = a * rho
             y0 = b * rho
-            pt1 = [int(x0 + 10000 * (-b)), int(y0 + 10000 * a)] # Magic Number 10000
-            pt2 = [int(x0 - 10000 * (-b)), int(y0 - 10000 * a)] # Magic Number 10000
+            pt1 = [int(x0 + 10000 * (-b)), int(y0 + 10000 * a)]  # Magic Number 10000
+            pt2 = [int(x0 - 10000 * (-b)), int(y0 - 10000 * a)]  # Magic Number 10000
             line_points.append([pt1, pt2])
         many_potential_corners = find_intersections(line_points)
         potential_corners = cluster(many_potential_corners)
