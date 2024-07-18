@@ -5,3 +5,4 @@
 .idea
 /data
 __pychache__
+.mypy_cache

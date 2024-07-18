@@ -1,12 +1,11 @@
 import cv2
 import chess.pgn
-from ultralytics import YOLO
+from ultralytics import YOLO  # type: ignore
 import logging
 import chessCorners
 import chessLocations
 import chessGeneral
 import time
-import os
 
 
 pgn_file = "C:/Users/nbuic/OneDrive/Desktop/TestingPGN/TEST.pgn"
@@ -15,9 +14,9 @@ conversion_matrix, rotation = None, False
 game = chessGeneral.StartChessGame()
 logging.basicConfig(filename='./misc/example.log', filemode='w', level=logging.DEBUG)
 video_capture = cv2.VideoCapture(1)
-os.chdir("C://PythonStuff/Projects/ChessScanner")
-corner_prediction_model = YOLO('./CloudModels/BoardModels/NanoA100_BEST/train/weights/best.pt')
-piece_prediction_model = YOLO('./CloudModels/BestYet/train/weights/best.pt')
+base_path = "C://PythonStuff/Projects/ChessScanner"
+corner_prediction_model = YOLO(f'{base_path}/CloudModels/BoardModels/NanoA100_BEST/train/weights/best.pt')
+piece_prediction_model = YOLO(f'{base_path}/CloudModels/BestYet/train/weights/best.pt')
 on_startup = True
 start, count = time.time(), 0
 while video_capture.isOpened():  # todo rework this logic to be cleaner

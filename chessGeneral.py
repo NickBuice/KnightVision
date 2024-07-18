@@ -4,18 +4,19 @@ import logging
 import chess
 import chess.svg
 import chess.pgn
-import os
-os.environ['path'] = 'C://Program Files/UniConvertor-2.0rc5/dlls'
 import cairosvg
 import concurrent.futures
 from typing import Optional, Any
 
 
-def image_resize(image, new_size):
+def image_resize(image: cv2.typing.MatLike, new_size: int) -> cv2.typing.MatLike:
+    """
+    Resizes image to the largest possible new size while maintaining aspect ratio.
+    """
     h, w = image.shape[0], image.shape[1]
     if w > h:
         scale = new_size / w
-        height = int((np.ceil(h * scale / 32))* 32)
+        height = int((np.ceil(h * scale / 32)) * 32)
         dim = (new_size, height)
     else:
         scale = new_size / h
@@ -24,7 +25,10 @@ def image_resize(image, new_size):
     return cv2.resize(image, dim)
 
 
-def write_fen(raw_board):
+def write_fen(raw_board: np.ndarray) -> str:
+    """
+    Takes raw numpy board state and converts to FEN.
+    """
     fen_string = ""
     value_names = {1: 'b', 2: 'k', 3: 'n', 4: 'p', 5: 'q', 6: 'r', 7: 'B', 8: 'K', 9: 'N', 10: 'P', 11: 'Q', 12: 'R'}
     for row_number, row in enumerate(raw_board):
@@ -44,13 +48,17 @@ def write_fen(raw_board):
     return fen_string
 
 
-def show_same_display():
-    # chessboard_img = cv2.imread('./misc/test.png')
-    # cv2.imshow("Chessboard", chessboard_img)
+def show_same_display() -> None:
+    """
+    Keeps image of svg render responsive.
+    """
     cv2.waitKey(1)
 
 
-def show_svg_display(fen, board_size=600):
+def show_svg_display(fen: str, board_size: int = 600) -> None:
+    """
+    Takes current FEN and displays image of svg render.
+    """
     digital_chessboard = chess.Board(fen)
     digital_display = chess.svg.board(digital_chessboard, size=board_size)
     cairosvg.svg2png(bytestring=digital_display, write_to='./misc/test.png')
@@ -59,15 +67,24 @@ def show_svg_display(fen, board_size=600):
     cv2.waitKey(1)
 
 
-def write_pgn_to_file(pgn_file_name, game):
-    pgn_string = game.accept(chess.pgn.StringExporter(headers=True))
+def write_pgn_to_file(pgn_file_name: str, game: chess.pgn.Game) -> None:
+    """
+    Overwrites current PGN to external file.
+    """
     with open(pgn_file_name, 'w') as pgn_file:
-        pgn_file.write(pgn_string)
+        pgn_file.write(game.accept(chess.pgn.StringExporter(headers=True)))
 
 
 class StartChessGame:
+    """
+    Initializes all information needed to model game and raw inputs.  Contains method
+    to translate raw board state to UCI move.
+    """
     def __init__(self, white: str = "Player 1", black: str = "Player 2", from_position: bool = False,
                  raw_board: np.ndarray = np.zeros((8, 8)), pgn_delay: int = -5, board_delay: int = 6) -> None:
+        """
+        Initializes game model, raw inputs, and stacks for in place mutation.
+        """
         self.game: chess.pgn.Game = chess.pgn.Game.without_tag_roster()
         if from_position:
             self.game.setup(write_fen(raw_board))
@@ -77,12 +94,13 @@ class StartChessGame:
         self.waiting_moves: list = []
         self.new_np_board: np.ndarray = np.zeros((8, 8))
         self.old_np_board: np.ndarray = np.zeros((8, 8))
-        self.board_stack: list[list[[]] | Any] = [[] for _ in range(board_delay)]
+        self.board_stack: list[list[Any]] = [[] for _ in range(board_delay)]
         self.moves: list[Optional[str]] = [None for _ in range(-1 * pgn_delay)]
 
     def update_move_stack(self) -> None:  # TODO error a1a1 not in move_stack[move_stack.index(comparison_move)]
         """
-        Deprecated function.  Manages moves and waiting_moves stack
+        Deprecated function.  Managed moves and waiting_moves stack prior to legal move checking,
+        although legality checking happens beforehand now.
         """
         del self.moves[0]
         self.moves.append(None if not self.waiting_moves else self.waiting_moves.pop(0))
@@ -106,7 +124,8 @@ class StartChessGame:
         UCI move to waiting_moves stack if the move is legal.
         """
         saved_old_np_board = self.old_np_board.copy()
-        self.board_stack.pop(0), self.board_stack.append([])
+        self.board_stack.pop(0)
+        self.board_stack.append([])
         file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
         replaced = []
 
@@ -118,9 +137,13 @@ class StartChessGame:
                     replaced.append((i, j, raw_board_value, old_raw_board_value, color != 0 and old_color != 0))
 
         for index, (i, j, new_piece, old_piece, capture) in enumerate(replaced[:-1]):
-            for (i_, j_, new_piece_, old_piece_, capture_) in replaced[index + 1:]:
-                if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture) and not (capture_ and capture):
-                    self.board_stack[-1].append((j_, i_, j, i, capture_, capture) if new_piece_ == 0 else (j, i, j_, i_, capture, capture_))
+            for index_, (i_, j_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
+                if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture):
+                    if not (capture_ and capture):
+                        if new_piece_ == 0:
+                            self.board_stack[-1].append((j_, i_, j, i, capture_, capture))
+                        else:
+                            self.board_stack[-1].append((j, i, j_, i_, capture, capture_))
 
         for raw_move in self.board_stack[-1]:
             if sum([raw_move in board for board in self.board_stack]) >= 3:  # magic number

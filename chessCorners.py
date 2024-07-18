@@ -1,8 +1,12 @@
 import numpy as np
 import cv2
+from typing import Any, Optional
 
 
-def find_intersections(line_endpoints):
+def find_intersections(line_endpoints: list[tuple[tuple[int, int], tuple[int, int]]]) -> list[tuple[int, int]]:
+    """
+    Finds points of intersection of lines at least 'magic number' degrees apart.
+    """
     intersections = []
     parallel_threshold = 45 * np.pi/180  # Magic Number
     slopes = [(pt[1][1] - pt[0][1]) / ((pt[1][0] - pt[0][0]) + .0001) for pt in line_endpoints]  # Magic number
@@ -14,11 +18,14 @@ def find_intersections(line_endpoints):
             if nearly_perpendicular:
                 output_point_x = (y_intercept2 - y_intercept1) / (slope1 - slope2)
                 output_point_y = slope1 * output_point_x + y_intercept1
-                intersections.append([int(output_point_x), int(output_point_y)])
+                intersections.append((int(output_point_x), int(output_point_y)))
     return intersections
 
 
-def cluster(points):
+def cluster(points: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """
+    Clusters points within 'magic number' of initial point.
+    """
     clustered_points = []
     for i, pt in enumerate(points):
         x1, y1 = pt[0], pt[1]
@@ -31,11 +38,14 @@ def cluster(points):
                 temp_x.append(x2)
                 temp_y.append(y2)
                 del points[j]
-        clustered_points.append([int(np.average(temp_x)), int(np.average(temp_y))])
+        clustered_points.append((int(np.average(temp_x)), int(np.average(temp_y))))
     return clustered_points
 
 
-def mark_corners(segmentation):
+def mark_corners(segmentation: np.ndarray) -> list[tuple[int, int]]:
+    """
+    Predicts corners from model chessboard segmentation.
+    """
     potential_corners = []
     segmentation *= 255
     thresh = segmentation.astype(np.uint8)
@@ -50,15 +60,18 @@ def mark_corners(segmentation):
             b = np.sin(theta)
             x0 = a * rho
             y0 = b * rho
-            pt1 = [int(x0 + 10000 * (-b)), int(y0 + 10000 * a)]  # Magic Number 10000
-            pt2 = [int(x0 - 10000 * (-b)), int(y0 - 10000 * a)]  # Magic Number 10000
-            line_points.append([pt1, pt2])
+            pt1 = (int(x0 + 10000 * (-b)), int(y0 + 10000 * a))  # Magic Number 10000
+            pt2 = (int(x0 - 10000 * (-b)), int(y0 - 10000 * a))  # Magic Number 10000
+            line_points.append((pt1, pt2))
         many_potential_corners = find_intersections(line_points)
         potential_corners = cluster(many_potential_corners)
     return potential_corners
 
 
-def sort_clockwise(raw_pts):
+def sort_clockwise(raw_pts: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """
+    Sorts list of points clockwise centered at point average.
+    """
     center = [sum(pt[0] for pt in raw_pts) / len(raw_pts), sum(pt[1] for pt in raw_pts) / len(raw_pts)]
     adjusted = [[pt[0] - center[0], pt[1] - center[1]] for pt in raw_pts]
     angles = []
@@ -72,10 +85,13 @@ def sort_clockwise(raw_pts):
     return [pt for _, pt in sorted(zip(angles, raw_pts))]
 
 
-def board_rotation(birdseye_img, size=400):
+def board_rotation(birdseye_img: cv2.typing.MatLike, size: int = 400) -> bool:
+    """
+    Checks for needed board rotation for proper digital chessboard orientation.
+    """
     gray_birdseye_img = cv2.cvtColor(birdseye_img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray_birdseye_img, 150, 255, cv2.THRESH_BINARY)
-    fake = np.zeros((size, size))
+    fake = np.zeros((size, size), dtype=np.uint8)
     for i in range(size):
         for j in range(size):
             if (i // (size/8)) % 2 == (j // (size/8)) % 2:
@@ -84,7 +100,11 @@ def board_rotation(birdseye_img, size=400):
     return np.average(diff) > np.average(thresh)
 
 
-def find_chessboard_corners(results_img, corner_results_data):
+def find_chessboard_corners(results_img: cv2.typing.MatLike,
+                            corner_results_data: Any) -> tuple[Optional[np.ndarray], bool]:
+    """
+    Uses predicted corners to create conversion matrix and check need for board alignment.
+    """
     top_view = np.zeros((400, 400, 3)).astype(np.uint8)
     transformation_matrix = None
     for result in corner_results_data:
@@ -93,10 +113,9 @@ def find_chessboard_corners(results_img, corner_results_data):
             for mask in result_masks.data:
                 corners = mark_corners(mask.cpu().numpy())
                 if len(corners) == 4:
-                    real = np.float32(sort_clockwise(corners))
-                    ideal = np.float32([[0, 0], [400, 0], [400, 400], [0, 400]])
+                    real = np.array(sort_clockwise(corners), dtype=np.float32)
+                    ideal = np.array([[0, 0], [400, 0], [400, 400], [0, 400]], dtype=np.float32)
                     transformation_matrix = cv2.getPerspectiveTransform(real, ideal)
-                    top_view = cv2.warpPerspective(results_img, transformation_matrix, (400, 400))
-                    top_view = cv2.rotate(top_view, cv2.ROTATE_90_CLOCKWISE)
-    rotate_board = board_rotation(top_view, 400)
-    return transformation_matrix, rotate_board
+                    top_view = cv2.warpPerspective(results_img, transformation_matrix, (400, 400)).astype(np.uint8)
+                    top_view = cv2.rotate(top_view, cv2.ROTATE_90_CLOCKWISE).astype(np.uint8)
+    return transformation_matrix, board_rotation(top_view, 400)
