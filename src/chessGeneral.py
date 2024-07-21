@@ -11,7 +11,7 @@ from typing import Optional, Any
 
 def image_resize(image: cv2.typing.MatLike, new_size: int) -> cv2.typing.MatLike:
     """
-    Resizes image to the largest possible new size while maintaining aspect ratio.
+    Resizes longest image edge to new size while maintaining aspect ratio.
     """
     h, w = image.shape[0], image.shape[1]
     if w > h:
@@ -25,7 +25,7 @@ def image_resize(image: cv2.typing.MatLike, new_size: int) -> cv2.typing.MatLike
     return cv2.resize(image, dim)
 
 
-def write_fen(raw_board: np.ndarray) -> str:
+def write_fen(raw_board: np.ndarray) -> str:  # todo look at logic, see if it can be condensed
     """
     Takes raw numpy board state and converts to FEN.
     """
@@ -57,19 +57,19 @@ def show_same_display() -> None:
 
 def show_svg_display(fen: str, board_size: int = 600) -> None:
     """
-    Takes current FEN and displays image of svg render.
+    Takes current FEN and displays image of chess.svg board render.
     """
     digital_chessboard = chess.Board(fen)
     digital_display = chess.svg.board(digital_chessboard, size=board_size)
     cairosvg.svg2png(bytestring=digital_display, write_to='./misc/test.png')
-    chessboard_img = cv2.imread('./misc/test.png')
+    chessboard_img = cv2.imread('../misc/test.png')
     cv2.imshow("Chessboard", chessboard_img)
     cv2.waitKey(1)
 
 
 def write_pgn_to_file(pgn_file_name: str, game: chess.pgn.Game) -> None:
     """
-    Overwrites current PGN to external file.
+    Overwrites current PGN in external file.
     """
     with open(pgn_file_name, 'w') as pgn_file:
         pgn_file.write(game.accept(chess.pgn.StringExporter(headers=True)))
@@ -131,8 +131,8 @@ class StartChessGame:
 
         for i, (raw_board_row, old_raw_board_row) in enumerate(zip(self.new_np_board, self.old_np_board)):
             for j, (raw_board_value, old_raw_board_value) in enumerate(zip(raw_board_row, old_raw_board_row)):
-                color = 2 if raw_board_value > 6 else (1 if 0 < raw_board_value < 7 else 0)
-                old_color = 2 if old_raw_board_value > 6 else (1 if 0 < old_raw_board_value < 7 else 0)
+                color = "WHITE" if raw_board_value > 6 else ("BLACK" if 0 < raw_board_value < 7 else 0)
+                old_color = "WHITE" if old_raw_board_value > 6 else ("BLACK" if 0 < old_raw_board_value < 7 else 0)
                 if color != old_color:
                     replaced.append((i, j, raw_board_value, old_raw_board_value, color != 0 and old_color != 0))
 
