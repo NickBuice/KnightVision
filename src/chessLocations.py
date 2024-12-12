@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-from typing import Any
+from typing import Any, Optional
 
 
 def adjust_for_angle(x: float, y: float, height: float) -> tuple[float, float]:
@@ -25,7 +25,7 @@ def round_square(num: int, board_size: int = 400) -> int:
     return int(value)
 
 
-def locate_pieces(results_img: cv2.typing.MatLike, piece_results_data: Any, transformation_matrix: np.ndarray,
+def locate_pieces(results_img: cv2.typing.MatLike, piece_results_data: Any, transformation_matrix: Optional[np.ndarray],
                   rotate_board: bool, raw_board: np.ndarray) -> tuple[cv2.typing.MatLike, np.ndarray]:
     """
     Transforms chess piece image data into raw numpy board.
