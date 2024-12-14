@@ -91,12 +91,12 @@ def board_rotation(birdseye_img: cv2.typing.MatLike, size: int = 400) -> bool:
     """
     gray_birdseye_img = cv2.cvtColor(birdseye_img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray_birdseye_img, 150, 255, cv2.THRESH_BINARY)
-    fake = np.zeros((size, size), dtype=np.uint8)
+    fake = np.zeros((size, size))
     for i in range(size):
         for j in range(size):
             if (i // (size/8)) % 2 == (j // (size/8)) % 2:
                 fake[i][j] = 255
-    diff = abs(fake - thresh)  # play with threshold difference values due to board rotating only sometimes
+    diff = abs(fake - thresh)
     return np.average(diff) > np.average(thresh)
 
 
