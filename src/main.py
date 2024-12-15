@@ -11,7 +11,7 @@ pgn_file = "C:/Users/nbuic/OneDrive/Desktop/TestingPGN/TEST.pgn"
 board_output_size, image_output_size, image_size = 600, 640, 640  # Magic Numbers
 conversion_matrix, rotation = None, False
 game = chessGeneral.StartChessGame()
-logging.basicConfig(filename=f'{base_path}/misc/example.log', filemode='w', level=logging.DEBUG)
+logging.basicConfig(filename='../misc/example.log', filemode='w', level=logging.DEBUG)
 video_capture = cv2.VideoCapture(1)
 corner_prediction_model = YOLO(f'{base_path}/CloudModels/BoardModels/NanoA100_BEST/train/weights/best.pt')
 piece_prediction_model = YOLO(f'{base_path}/CloudModels/BestYet/train/weights/best.pt')

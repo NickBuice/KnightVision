@@ -97,6 +97,9 @@ def board_rotation(birdseye_img: cv2.typing.MatLike, size: int = 400) -> bool:
             if (i // (size/8)) % 2 == (j // (size/8)) % 2:
                 fake[i][j] = 255
     diff = abs(fake - thresh)
+    cv2.imshow("fake", fake)
+    cv2.imshow("thresh", thresh)
+    cv2.imshow("diff", diff)
     return np.average(diff) > np.average(thresh)
 
 
