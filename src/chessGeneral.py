@@ -61,8 +61,8 @@ def show_svg_display(fen: str, board_size: int = 600) -> None:
     """
     digital_chessboard = chess.Board(fen)
     digital_display = chess.svg.board(digital_chessboard, size=board_size)
-    cairosvg.svg2png(bytestring=digital_display, write_to='./misc/test.png')
-    chessboard_img = cv2.imread('./misc/test.png')
+    cairosvg.svg2png(bytestring=digital_display, write_to='../misc/test.png')
+    chessboard_img = cv2.imread('../misc/test.png')
     cv2.imshow("Chessboard", chessboard_img)
     cv2.waitKey(1)
 
@@ -124,33 +124,41 @@ class StartChessGame:
         UCI move to waiting_moves stack if the move is legal.
         """
         saved_old_np_board = self.old_np_board.copy()
-        self.board_stack.pop(0), self.board_stack.append([])
+        self.board_stack.pop(0)
+        self.board_stack.append([])
         file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
         replaced = []
+
         for i, (raw_board_row, old_raw_board_row) in enumerate(zip(self.new_np_board, self.old_np_board)):
             for j, (raw_board_value, old_raw_board_value) in enumerate(zip(raw_board_row, old_raw_board_row)):
-                color = 2 if raw_board_value > 6 else (1 if 0 < raw_board_value < 7 else 0)
-                old_color = 2 if old_raw_board_value > 6 else (1 if 0 < old_raw_board_value < 7 else 0)
+                color = "WHITE" if raw_board_value > 6 else ("BLACK" if 0 < raw_board_value < 7 else 0)
+                old_color = "WHITE" if old_raw_board_value > 6 else ("BLACK" if 0 < old_raw_board_value < 7 else 0)
                 if color != old_color:
                     replaced.append((i, j, color, old_color, color != 0 and old_color != 0))
+
         for index, (i, j, color, old_color, capture) in enumerate(replaced[:-1]):
             for (i_, j_, color_, old_color_, capture_) in replaced[index + 1:]:
                 if (capture_ or color == old_color_) and (color_ == old_color or capture) and not (capture_ and capture):
                     self.board_stack[-1].append((j_, i_, j, i, capture_, capture) if color_ == 0 else (j, i, j_, i_, capture, capture_))
+
         for raw_move in self.board_stack[-1]:
-            if sum([raw_move in board for board in self.board_stack]) > 10:
+            if sum([raw_move in board for board in self.board_stack]) >= 3:  # magic number
                 old_j, old_i, new_j, new_i, capture, capture_ = raw_move
                 move = file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i)
-                swap_variable = 0 if capture else self.old_np_board[old_i][old_j]
-                self.old_np_board[old_i][old_j] = 0 if capture_ else self.old_np_board[new_i][new_j]
-                self.old_np_board[new_i][new_j] = swap_variable
-                self.waiting_moves.append(move)
-                logging.info("Move %s", move)
+                logging.info("Move %s, LatestBoardStack: %s", move, self.board_stack[-1])
+                if move in [chess.Move.uci(legal_move) for legal_move in self.chessboard.legal_moves]:
+                    swap_variable = 0 if capture else self.old_np_board[old_i][old_j]
+                    self.old_np_board[old_i][old_j] = 0 if capture_ else self.old_np_board[new_i][new_j]
+                    self.old_np_board[new_i][new_j] = swap_variable
+                    self.waiting_moves.append(move)
+                    logging.info("MOVE  %s PLAYED", move)
+
         if not np.array_equal(self.old_np_board, saved_old_np_board):
             pool.submit(show_svg_display, write_fen(self.old_np_board), 600)
             logging.info("Board:\n%s", self.old_np_board)
         else:
             pool.submit(show_same_display)
+
         self.new_np_board = self.old_np_board
 
 
