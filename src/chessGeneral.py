@@ -37,8 +37,8 @@ def show_svg_display(digital_chessboard: chess.Board, board_size: int = 600) -> 
     Takes current FEN and displays image of chess.svg board render.
     """
     digital_display = chess.svg.board(digital_chessboard, size=board_size)
-    cairosvg.svg2png(bytestring=digital_display, write_to='../misc/test.png')
-    chessboard_img = cv2.imread('../misc/test.png')
+    cairosvg.svg2png(bytestring=digital_display, write_to='./misc/test.png')
+    chessboard_img = cv2.imread('./misc/test.png')
     cv2.imshow("Chessboard", chessboard_img)
     cv2.waitKey(1)
 

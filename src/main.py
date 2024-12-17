@@ -1,16 +1,15 @@
 import cv2
-import chess.pgn
 from ultralytics import YOLO  # type: ignore
 import logging
 from src import chessCorners, chessGeneral, chessLocations
 import time
 
 
-base_path = "C://PythonStuff/Projects/ChessScanner"
+base_path = "C://PythonStuff/Projects/KnightVision"
 board_output_size, image_output_size, image_size = 600, 640, 640  # Magic Numbers
 conversion_matrix, rotation = None, False
 chess_game = chessGeneral.StartChessGame()
-logging.basicConfig(filename='../misc/example.log', filemode='w', level=logging.DEBUG)
+logging.basicConfig(filename='./misc/example.log', filemode='w', level=logging.DEBUG)
 video_capture = cv2.VideoCapture(1)
 corner_prediction_model = YOLO(f'{base_path}/CloudModels/BoardModels/NanoA100_BEST/train/weights/best.pt')
 piece_prediction_model = YOLO(f'{base_path}/CloudModels/BestYet/train/weights/best.pt')
