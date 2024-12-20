@@ -89,8 +89,6 @@ class StartChessGame:
             for file in range(0, 8):
                 self.old_np_board[rank][file] = key[raw_board_rows[rank][file]]
 
-
-
     def update_board_and_waiting_move_stack(self) -> None:  # Best so far
         """
         Compares new and old raw numpy board states for inequalities, then
@@ -108,16 +106,12 @@ class StartChessGame:
                 color = "WHITE" if raw_board_value > 6 else ("BLACK" if 0 < raw_board_value < 7 else 0)
                 old_color = "WHITE" if old_raw_board_value > 6 else ("BLACK" if 0 < old_raw_board_value < 7 else 0)
                 if color != old_color:
-                    replaced.append((i, j, raw_board_value, old_raw_board_value, color != 0 and old_color != 0))
+                    replaced.append((i, j, color, old_color, color != 0 and old_color != 0))
 
-        for index, (i, j, new_piece, old_piece, capture) in enumerate(replaced[:-1]):
-            for index_, (i_, j_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
-                if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture):
-                    if not (capture_ and capture):
-                        if new_piece_ == 0:
-                            self.board_stack[-1].append((j_, i_, j, i, capture_, capture))
-                        else:
-                            self.board_stack[-1].append((j, i, j_, i_, capture, capture_))
+        for index, (i, j, color, old_color, capture) in enumerate(replaced[:-1]):
+            for (i_, j_, color_, old_color_, capture_) in replaced[index + 1:]:
+                if (capture_ or color == old_color_) and (color_ == old_color or capture) and not (capture_ and capture):
+                    self.board_stack[-1].append((j_, i_, j, i, capture_, capture) if color_ == 0 else (j, i, j_, i_, capture, capture_))
 
         for raw_move in self.board_stack[-1]:
             if sum([raw_move in board for board in self.board_stack]) >= 8:  # magic number
