@@ -6,7 +6,7 @@ import chess.svg
 import chess.pgn
 import cairosvg
 import concurrent.futures
-from typing import Optional, Any
+from typing import Any
 
 
 def image_resize(image: cv2.typing.MatLike, new_size: int) -> cv2.typing.MatLike:
@@ -74,6 +74,22 @@ class StartChessGame:
         Outputs equality of new and old raw numpy board states.
         """
         return not np.array_equal(self.new_np_board, self.old_np_board)
+
+    def update_old_np_board(self) -> None:
+        """
+        Syncs chess.Board object to old raw board
+        """
+        key = {'0': 0, 'b': 1, 'k': 2, 'n': 3, 'p': 4, 'q': 5, 'r': 6, 'B': 7, 'K': 8, 'N': 9, 'P': 10, 'Q': 11, 'R': 12}
+        fen = self.chessboard.fen().split()[0]
+        for value in fen:
+            if value.isnumeric():
+                fen = fen.replace(value, int(value)*'0')
+        raw_board_rows = fen.split('/')
+        for rank in range(0, 8):
+            for file in range(0, 8):
+                self.old_np_board[rank][file] = key[raw_board_rows[rank][file]]
+
+
 
     def update_board_and_waiting_move_stack(self) -> None:  # Best so far
         """

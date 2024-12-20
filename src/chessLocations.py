@@ -49,8 +49,8 @@ def locate_pieces(results_img: cv2.typing.MatLike, piece_results_data: Any, tran
                 row = 400 - round_square(ideal[1] / ideal[2])  # Magic Rotation/Flipping??? why is this line needed
                 ideal_pts.append((int((row - 25) / 50), int((column - 25) / 50)))
         if rotate_board:
-            #  ideal_pts = [(7 - pt[1], pt[0]) for pt in ideal_pts]  # clockwise 90 degrees
-            ideal_pts = [(pt[1],  7 - pt[0]) for pt in ideal_pts]  # counterclockwise 90 degrees
+            ideal_pts = [(7 - pt[1], pt[0]) for pt in ideal_pts]  # clockwise 90 degrees
+            #  ideal_pts = [(pt[1],  7 - pt[0]) for pt in ideal_pts]  # counterclockwise 90 degrees
         for i in range(8):
             for j in range(8):
                 raw_board[i][j] = 0
