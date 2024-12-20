@@ -89,8 +89,6 @@ class StartChessGame:
             for file in range(0, 8):
                 self.old_np_board[rank][file] = key[raw_board_rows[rank][file]]
 
-
-
     def update_board_and_waiting_move_stack(self) -> None:  # Best so far
         """
         Compares new and old raw numpy board states for inequalities, then
