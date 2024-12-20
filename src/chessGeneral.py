@@ -25,29 +25,6 @@ def image_resize(image: cv2.typing.MatLike, new_size: int) -> cv2.typing.MatLike
     return cv2.resize(image, dim)
 
 
-def write_fen(raw_board: np.ndarray) -> str:  # todo look at logic, see if it can be condensed
-    """
-    Takes raw numpy board state and converts to FEN.
-    """
-    fen_string = ""
-    value_names = {1: 'b', 2: 'k', 3: 'n', 4: 'p', 5: 'q', 6: 'r', 7: 'B', 8: 'K', 9: 'N', 10: 'P', 11: 'Q', 12: 'R'}
-    for row_number, row in enumerate(raw_board):
-        zeros = 0
-        for square in row:
-            if square == 0:
-                zeros += 1
-            else:
-                if zeros != 0:
-                    fen_string += str(zeros)
-                fen_string += str(value_names[square])
-                zeros = 0
-        if zeros != 0:
-            fen_string += str(zeros)
-        if row_number != 7:
-            fen_string += '/'
-    return fen_string
-
-
 def show_same_display() -> None:
     """
     Keeps image of svg render responsive.
@@ -55,11 +32,10 @@ def show_same_display() -> None:
     cv2.waitKey(1)
 
 
-def show_svg_display(fen: str, board_size: int = 600) -> None:
+def show_svg_display(digital_chessboard: chess.Board, board_size: int = 600) -> None:
     """
     Takes current FEN and displays image of chess.svg board render.
     """
-    digital_chessboard = chess.Board(fen)
     digital_display = chess.svg.board(digital_chessboard, size=board_size)
     cairosvg.svg2png(bytestring=digital_display, write_to='../misc/test.png')
     chessboard_img = cv2.imread('../misc/test.png')
@@ -80,36 +56,18 @@ class StartChessGame:
     Initializes all information needed to model game and raw inputs.  Contains method
     to translate raw board state to UCI move.
     """
-    def __init__(self, white: str = "Player 1", black: str = "Player 2", from_position: bool = False,
-                 raw_board: np.ndarray = np.zeros((8, 8)), pgn_delay: int = -5, board_delay: int = 6) -> None:
+    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 6) -> None:
         """
         Initializes game model, raw inputs, and stacks for in place mutation.
         """
+        self.pgn_file: str = "C:../misc/TEST.pgn"
         self.game: chess.pgn.Game = chess.pgn.Game.without_tag_roster()
-        if from_position:
-            self.game.setup(write_fen(raw_board))
         self.chessboard: chess.Board = chess.Board()
         self.game.headers["White"], self.game.headers["Black"] = white, black
         self.node: chess.pgn.GameNode = self.game
-        self.waiting_moves: list = []
         self.new_np_board: np.ndarray = np.zeros((8, 8))
         self.old_np_board: np.ndarray = np.zeros((8, 8))
         self.board_stack: list[list[Any]] = [[] for _ in range(board_delay)]
-        self.moves: list[Optional[str]] = [None for _ in range(-1 * pgn_delay)]
-
-    def update_move_stack(self) -> None:  # TODO error a1a1 not in move_stack[move_stack.index(comparison_move)]
-        """
-        Deprecated function.  Managed moves and waiting_moves stack prior to legal move checking,
-        although legality checking happens beforehand now.
-        """
-        del self.moves[0]
-        self.moves.append(None if not self.waiting_moves else self.waiting_moves.pop(0))
-        for move_number, move in enumerate(self.moves[:-1]):
-            for comparison_move in self.moves[move_number + 1:]:
-                if move and comparison_move and move[2:] == comparison_move[:2]:
-                    self.moves[move_number] = None
-                    self.moves[self.moves.index(comparison_move)] = move[:2] + comparison_move[2:]
-                    logging.info("Move Combination Detected")
 
     def board_has_changed(self) -> bool:
         """
@@ -154,12 +112,15 @@ class StartChessGame:
                     swap_variable = 0 if capture else self.old_np_board[old_i][old_j]
                     self.old_np_board[old_i][old_j] = 0 if capture_ else self.old_np_board[new_i][new_j]
                     self.old_np_board[new_i][new_j] = swap_variable
-                    self.waiting_moves.append(move)
+                    self.node = self.node.add_variation(chess.Move.from_uci(move))
+                    self.chessboard.push_uci(move)
                     logging.info("MOVE  %s PLAYED", move)
 
         if not np.array_equal(self.old_np_board, saved_old_np_board):
-            pool.submit(show_svg_display, write_fen(self.old_np_board), 600)
+            pool.submit(show_svg_display, self.chessboard, 600)
+            pool.submit(write_pgn_to_file, self.pgn_file, self.game)
             logging.info("Board:\n%s", self.old_np_board)
+            logging.info("PGN:\n%s", self.game)
         else:
             pool.submit(show_same_display)
 
