@@ -60,7 +60,7 @@ class StartChessGame:
         """
         Initializes game model, raw inputs, and stacks for in place mutation.
         """
-        self.pgn_file: str = "C:/Users/nbuic/OneDrive/Desktop/TestingPGN/TEST.pgn"
+        self.pgn_file: str = "C:../misc/TEST.pgn"
         self.game: chess.pgn.Game = chess.pgn.Game.without_tag_roster()
         self.chessboard: chess.Board = chess.Board()
         self.game.headers["White"], self.game.headers["Black"] = white, black
@@ -75,7 +75,23 @@ class StartChessGame:
         """
         return not np.array_equal(self.new_np_board, self.old_np_board)
 
-    def update_board_and_waiting_move_stack(self) -> None:
+    def update_old_np_board(self) -> None:
+        """
+        Syncs chess.Board object to old raw board
+        """
+        key = {'0': 0, 'b': 1, 'k': 2, 'n': 3, 'p': 4, 'q': 5, 'r': 6, 'B': 7, 'K': 8, 'N': 9, 'P': 10, 'Q': 11, 'R': 12}
+        fen = self.chessboard.fen().split()[0]
+        for value in fen:
+            if value.isnumeric():
+                fen = fen.replace(value, int(value)*'0')
+        raw_board_rows = fen.split('/')
+        for rank in range(0, 8):
+            for file in range(0, 8):
+                self.old_np_board[rank][file] = key[raw_board_rows[rank][file]]
+
+
+
+    def update_board_and_waiting_move_stack(self) -> None:  # Best so far
         """
         Compares new and old raw numpy board states for inequalities, then
         matches inequalities to check for repetitive detection, then adds
@@ -92,12 +108,16 @@ class StartChessGame:
                 color = "WHITE" if raw_board_value > 6 else ("BLACK" if 0 < raw_board_value < 7 else 0)
                 old_color = "WHITE" if old_raw_board_value > 6 else ("BLACK" if 0 < old_raw_board_value < 7 else 0)
                 if color != old_color:
-                    replaced.append((i, j, color, old_color, color != 0 and old_color != 0))
+                    replaced.append((i, j, raw_board_value, old_raw_board_value, color != 0 and old_color != 0))
 
-        for index, (i, j, color, old_color, capture) in enumerate(replaced[:-1]):
-            for (i_, j_, color_, old_color_, capture_) in replaced[index + 1:]:
-                if (capture_ or color == old_color_) and (color_ == old_color or capture) and not (capture_ and capture):
-                    self.board_stack[-1].append((j_, i_, j, i, capture_, capture) if color_ == 0 else (j, i, j_, i_, capture, capture_))
+        for index, (i, j, new_piece, old_piece, capture) in enumerate(replaced[:-1]):
+            for index_, (i_, j_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
+                if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture):
+                    if not (capture_ and capture):
+                        if new_piece_ == 0:
+                            self.board_stack[-1].append((j_, i_, j, i, capture_, capture))
+                        else:
+                            self.board_stack[-1].append((j, i, j_, i_, capture, capture_))
 
         for raw_move in self.board_stack[-1]:
             if sum([raw_move in board for board in self.board_stack]) >= 8:  # magic number

@@ -37,6 +37,7 @@ while video_capture.isOpened():  # todo rework this logic to be cleaner
                                                                     rotation, chess_game.new_np_board)
         if chess_game.board_has_changed():
             chess_game.update_board_and_waiting_move_stack()
+            chess_game.update_old_np_board()
         else:
             chessGeneral.pool.submit(chessGeneral.show_same_display)
     if key_press == ord("q"):
