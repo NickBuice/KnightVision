@@ -9,10 +9,10 @@ base_path = "C://PythonStuff/Projects/KnightVision"
 board_output_size, image_output_size, image_size = 600, 640, 640  # Magic Numbers
 conversion_matrix, rotation = None, False
 chess_game = chessGeneral.StartChessGame()
-logging.basicConfig(filename='./misc/example.log', filemode='w', level=logging.DEBUG)
-video_capture = cv2.VideoCapture(1)
-corner_prediction_model = YOLO(f'{base_path}/CloudModels/BoardModels/NanoA100_BEST/train/weights/best.pt')
-piece_prediction_model = YOLO(f'{base_path}/CloudModels/BestYet/train/weights/best.pt')
+logging.basicConfig(filename='../misc/example.log', filemode='w', level=logging.DEBUG)
+video_capture = cv2.VideoCapture(0)
+corner_prediction_model = YOLO(f'{base_path}/BoardPredictionModel/best.pt')
+piece_prediction_model = YOLO(f'{base_path}/PiecePredictionModel/best.pt')
 on_startup = True
 start, count = time.time(), 0
 while video_capture.isOpened():  # todo rework this logic to be cleaner
