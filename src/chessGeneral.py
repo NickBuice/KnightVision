@@ -37,8 +37,8 @@ def show_svg_display(digital_chessboard: chess.Board, board_size: int = 600) -> 
     Takes current FEN and displays image of chess.svg board render.
     """
     digital_display = chess.svg.board(digital_chessboard, size=board_size)
-    cairosvg.svg2png(bytestring=digital_display, write_to='./misc/test.png')
-    chessboard_img = cv2.imread('./misc/test.png')
+    cairosvg.svg2png(bytestring=digital_display, write_to='../misc/test.png')
+    chessboard_img = cv2.imread('../misc/test.png')
     cv2.imshow("Chessboard", chessboard_img)
     cv2.waitKey(1)
 
@@ -56,7 +56,7 @@ class StartChessGame:
     Initializes all information needed to model game and raw inputs.  Contains method
     to translate raw board state to UCI move.
     """
-    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 6) -> None:
+    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 10) -> None:
         """
         Initializes game model, raw inputs, and stacks for in place mutation.
         """
@@ -100,7 +100,7 @@ class StartChessGame:
                     self.board_stack[-1].append((j_, i_, j, i, capture_, capture) if color_ == 0 else (j, i, j_, i_, capture, capture_))
 
         for raw_move in self.board_stack[-1]:
-            if sum([raw_move in board for board in self.board_stack]) >= 3:  # magic number
+            if sum([raw_move in board for board in self.board_stack]) >= 8:  # magic number
                 old_j, old_i, new_j, new_i, capture, capture_ = raw_move
                 move = file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i)
                 logging.info("Move %s, LatestBoardStack: %s", move, self.board_stack[-1])
