@@ -60,7 +60,7 @@ class StartChessGame:
         """
         Initializes game model, raw inputs, and stacks for in place mutation.
         """
-        self.pgn_file: str = "C:../misc/TEST.pgn"
+        self.pgn_file: str = "../misc/TEST.pgn"
         self.game: chess.pgn.Game = chess.pgn.Game.without_tag_roster()
         self.chessboard: chess.Board = chess.Board()
         self.game.headers["White"], self.game.headers["Black"] = white, black
