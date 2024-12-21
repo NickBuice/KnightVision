@@ -56,7 +56,7 @@ class StartChessGame:
     Initializes all information needed to model game and raw inputs.  Contains method
     to translate raw board state to UCI move.
     """
-    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 6) -> None:
+    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 10) -> None:
         """
         Initializes game model, raw inputs, and stacks for in place mutation.
         """
@@ -106,19 +106,15 @@ class StartChessGame:
                 color = "WHITE" if raw_board_value > 6 else ("BLACK" if 0 < raw_board_value < 7 else 0)
                 old_color = "WHITE" if old_raw_board_value > 6 else ("BLACK" if 0 < old_raw_board_value < 7 else 0)
                 if color != old_color:
-                    replaced.append((i, j, raw_board_value, old_raw_board_value, color != 0 and old_color != 0))
+                    replaced.append((i, j, color, old_color, color != 0 and old_color != 0))
 
-        for index, (i, j, new_piece, old_piece, capture) in enumerate(replaced[:-1]):
-            for index_, (i_, j_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
-                if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture):
-                    if not (capture_ and capture):
-                        if new_piece_ == 0:
-                            self.board_stack[-1].append((j_, i_, j, i, capture_, capture))
-                        else:
-                            self.board_stack[-1].append((j, i, j_, i_, capture, capture_))
+        for index, (i, j, color, old_color, capture) in enumerate(replaced[:-1]):
+            for (i_, j_, color_, old_color_, capture_) in replaced[index + 1:]:
+                if (capture_ or color == old_color_) and (color_ == old_color or capture) and not (capture_ and capture):
+                    self.board_stack[-1].append((j_, i_, j, i, capture_, capture) if color_ == 0 else (j, i, j_, i_, capture, capture_))
 
         for raw_move in self.board_stack[-1]:
-            if sum([raw_move in board for board in self.board_stack]) >= 3:  # magic number
+            if sum([raw_move in board for board in self.board_stack]) >= 8:  # magic number
                 old_j, old_i, new_j, new_i, capture, capture_ = raw_move
                 move = file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i)
                 logging.info("Move %s, LatestBoardStack: %s", move, self.board_stack[-1])
