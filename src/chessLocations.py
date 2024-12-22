@@ -26,12 +26,13 @@ def round_square(num: int, board_size: int = 400) -> int:
 
 
 def locate_pieces(results_img: cv2.typing.MatLike, piece_results_data: Any, transformation_matrix: Optional[np.ndarray],
-                  rotate_board: bool, raw_board: np.ndarray) -> tuple[cv2.typing.MatLike, np.ndarray]:
+                  rotate_board: bool) -> tuple[cv2.typing.MatLike, np.ndarray]:
     """
     Transforms chess piece image data into raw numpy board.  Updates new and previous raw numpy boards.
     """
     board_error = 15  # MAGIC NUMBER
-    piece_names, ideal_pts, old_raw_board = [], [], raw_board.copy()
+    raw_board = np.zeros((8, 8))
+    piece_names, ideal_pts = [], []
     results_img = piece_results_data[0].plot(img=results_img)
     if transformation_matrix is not None:
         result = piece_results_data[0]
@@ -51,11 +52,8 @@ def locate_pieces(results_img: cv2.typing.MatLike, piece_results_data: Any, tran
         if rotate_board:
             ideal_pts = [(7 - pt[1], pt[0]) for pt in ideal_pts]  # white on right
             #  ideal_pts = [(pt[1],  7 - pt[0]) for pt in ideal_pts]  # white on left
-        for i in range(8):
-            for j in range(8):
-                raw_board[i][j] = 0
         for j in range(len(ideal_pts)):
             raw_board[ideal_pts[j][1], ideal_pts[j][0]] = piece_names[j]
     else:
         print("*Board Not Detected*")
-    return results_img, old_raw_board
+    return results_img, raw_board
