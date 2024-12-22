@@ -25,59 +25,33 @@ def image_resize(image: cv2.typing.MatLike, new_size: int) -> cv2.typing.MatLike
     return cv2.resize(image, dim)
 
 
-def show_same_display() -> None:
-    """
-    Keeps image of svg render responsive.
-    """
-    cv2.waitKey(1)
-
-
-def show_svg_display(digital_chessboard: chess.Board, board_size: int = 600) -> None:
-    """
-    Takes current FEN and displays image of chess.svg board render.
-    """
-    digital_display = chess.svg.board(digital_chessboard, size=board_size)
-    cairosvg.svg2png(bytestring=digital_display, write_to='../misc/test.png')
-    chessboard_img = cv2.imread('../misc/test.png')
-    cv2.imshow("Chessboard", chessboard_img)
-    cv2.waitKey(1)
-
-
-def write_pgn_to_file(pgn_file_name: str, game: chess.pgn.Game) -> None:
-    """
-    Overwrites current PGN in external file.
-    """
-    with open(pgn_file_name, 'w') as pgn_file:
-        pgn_file.write(game.accept(chess.pgn.StringExporter(headers=True)))
-
-
 class StartChessGame:
     """
-    Initializes all information needed to model game and raw inputs.  Contains method
+    Initializes all information needed to model game and display raw inputs.  Contains method
     to translate raw board state to UCI move.
     """
-    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 6) -> None:
+    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 10) -> None:
         """
         Initializes game model, raw inputs, and stacks for in place mutation.
         """
         self.pgn_file: str = "../misc/TEST.pgn"
         self.game: chess.pgn.Game = chess.pgn.Game.without_tag_roster()
         self.chessboard: chess.Board = chess.Board()
+        self.old_chessboard: chess.Board = chess.Board()
         self.game.headers["White"], self.game.headers["Black"] = white, black
         self.node: chess.pgn.GameNode = self.game
-        self.new_np_board: np.ndarray = np.zeros((8, 8))
-        self.old_np_board: np.ndarray = np.zeros((8, 8))
+        self.raw_board: np.ndarray = np.zeros((8, 8))
         self.board_stack: list[list[Any]] = [[] for _ in range(board_delay)]
 
     def board_has_changed(self) -> bool:
         """
         Outputs equality of new and old raw numpy board states.
         """
-        return not np.array_equal(self.new_np_board, self.old_np_board)
+        return not np.array_equal(self.raw_board, self.create_chessboard_to_raw())
 
-    def update_old_np_board(self) -> None:
+    def create_chessboard_to_raw(self) -> np.ndarray:
         """
-        Syncs chess.Board object to old raw board
+        Creates numpy array from most recent chessboard chess.Board object.
         """
         key = {'0': 0, 'b': 1, 'k': 2, 'n': 3, 'p': 4, 'q': 5, 'r': 6, 'B': 7, 'K': 8, 'N': 9, 'P': 10, 'Q': 11, 'R': 12}
         fen = self.chessboard.fen().split()[0]
@@ -85,23 +59,24 @@ class StartChessGame:
             if value.isnumeric():
                 fen = fen.replace(value, int(value)*'0')
         raw_board_rows = fen.split('/')
+        raw_board = np.zeros((8, 8))
         for rank in range(0, 8):
             for file in range(0, 8):
-                self.old_np_board[rank][file] = key[raw_board_rows[rank][file]]
+                raw_board[rank][file] = key[raw_board_rows[rank][file]]
+        return raw_board
 
-    def update_board_and_waiting_move_stack(self) -> None:  # Best so far
+    def update_chessboard(self) -> None:
         """
         Compares new and old raw numpy board states for inequalities, then
-        matches inequalities to check for repetitive detection, then adds
-        UCI move to waiting_moves stack if the move is legal.
+        matches inequalities to check for repetitive detection, then pushes
+        UCI move to chessboard chess.Board object.
         """
-        saved_old_np_board = self.old_np_board.copy()
         self.board_stack.pop(0)
         self.board_stack.append([])
         file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
         replaced = []
 
-        for i, (raw_board_row, old_raw_board_row) in enumerate(zip(self.new_np_board, self.old_np_board)):
+        for i, (raw_board_row, old_raw_board_row) in enumerate(zip(self.raw_board, self.create_chessboard_to_raw())):
             for j, (raw_board_value, old_raw_board_value) in enumerate(zip(raw_board_row, old_raw_board_row)):
                 color = "WHITE" if raw_board_value > 6 else ("BLACK" if 0 < raw_board_value < 7 else 0)
                 old_color = "WHITE" if old_raw_board_value > 6 else ("BLACK" if 0 < old_raw_board_value < 7 else 0)
@@ -118,27 +93,43 @@ class StartChessGame:
                             self.board_stack[-1].append((j, i, j_, i_, capture, capture_))
 
         for raw_move in self.board_stack[-1]:
-            if sum([raw_move in board for board in self.board_stack]) >= 3:  # magic number
+            if sum([raw_move in board for board in self.board_stack]) >= int(len(self.board_stack) * 0.75):  # magic number
                 old_j, old_i, new_j, new_i, capture, capture_ = raw_move
                 move = file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i)
                 logging.info("Move %s, LatestBoardStack: %s", move, self.board_stack[-1])
                 if move in [chess.Move.uci(legal_move) for legal_move in self.chessboard.legal_moves]:
-                    swap_variable = 0 if capture else self.old_np_board[old_i][old_j]
-                    self.old_np_board[old_i][old_j] = 0 if capture_ else self.old_np_board[new_i][new_j]
-                    self.old_np_board[new_i][new_j] = swap_variable
                     self.node = self.node.add_variation(chess.Move.from_uci(move))
                     self.chessboard.push_uci(move)
                     logging.info("MOVE  %s PLAYED", move)
 
-        if not np.array_equal(self.old_np_board, saved_old_np_board):
-            pool.submit(show_svg_display, self.chessboard, 600)
-            pool.submit(write_pgn_to_file, self.pgn_file, self.game)
-            logging.info("Board:\n%s", self.old_np_board)
+    def show_chessboard(self, force: bool = False) -> None:
+        """
+        Displays digital chessboard.
+        """
+        def show_svg_display() -> None:
+            """
+            Takes chess.Board object and displays image of chess.svg board render.
+            """
+            digital_display = chess.svg.board(self.chessboard, size=600)
+            png_data = cairosvg.svg2png(bytestring=digital_display)
+            image_array = np.frombuffer(png_data, dtype=np.uint8)
+            chessboard_img = cv2.imdecode(image_array, cv2.IMREAD_UNCHANGED)
+            cv2.imshow("Chessboard", chessboard_img)
+            cv2.waitKey(1)
+
+        def write_pgn_to_file() -> None:
+            """
+            Overwrites current PGN in external file.
+            """
+            with open(self.pgn_file, 'w') as pgn_file:
+                pgn_file.write(self.game.accept(chess.pgn.StringExporter(headers=True)))
+
+        if self.old_chessboard.fen() != self.chessboard.fen() or force:
+            pool.submit(show_svg_display)
+            pool.submit(write_pgn_to_file)
             logging.info("PGN:\n%s", self.game)
         else:
-            pool.submit(show_same_display)
-
-        self.new_np_board = self.old_np_board
-
+            pool.submit(cv2.waitKey, 1)
+        self.old_chessboard = self.chessboard.copy()
 
 pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
