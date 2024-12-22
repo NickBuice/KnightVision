@@ -28,7 +28,7 @@ def round_square(num: int, board_size: int = 400) -> int:
 def locate_pieces(results_img: cv2.typing.MatLike, piece_results_data: Any, transformation_matrix: Optional[np.ndarray],
                   rotate_board: bool) -> tuple[cv2.typing.MatLike, np.ndarray]:
     """
-    Transforms chess piece image data into raw numpy board.  Updates new and previous raw numpy boards.
+    Transforms chess piece image data into raw numpy board.
     """
     board_error = 15  # MAGIC NUMBER
     raw_board = np.zeros((8, 8))

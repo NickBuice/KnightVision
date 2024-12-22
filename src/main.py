@@ -7,9 +7,9 @@ import time
 
 on_startup, image_output_size, image_size = True, 640, 640  # Magic Numbers
 logging.basicConfig(filename='../misc/example.log', filemode='w', level=logging.DEBUG)
-video_capture = cv2.VideoCapture('../videos/video3.mp4')
+video_capture = cv2.VideoCapture('../videos/video1.mp4')
 corner_prediction_model = YOLO('../models/BoardPredictionModels/best.pt')
-piece_prediction_model = YOLO('../models/PiecePredictionModels/best.pt')
+piece_prediction_model = YOLO('../models/PiecePredictionModels/best11.pt')
 while video_capture.isOpened():
     successful_capture, frame = video_capture.read()
     if not successful_capture:
