@@ -85,15 +85,12 @@ class StartChessGame:
             for index_, (i_, j_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
                 if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture):
                     if not (capture_ and capture):
-                        if new_piece_ == 0:
-                            self.board_stack[-1].append((j_, i_, j, i, capture_, capture))
-                        else:
-                            self.board_stack[-1].append((j, i, j_, i_, capture, capture_))
+                        self.board_stack[-1].append((j_, i_, j, i) if new_piece_ == 0 else (j, i, j_, i_))
 
         file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
         for raw_move in self.board_stack[-1]:
             if sum([raw_move in board for board in self.board_stack]) >= int(len(self.board_stack) * 0.75):  # magic number
-                old_j, old_i, new_j, new_i, capture, capture_ = raw_move
+                old_j, old_i, new_j, new_i = raw_move
                 move = file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i)
                 logging.info("Move %s, LatestBoardStack: %s", move, self.board_stack[-1])
                 if move in [chess.Move.uci(legal_move) for legal_move in self.chessboard.legal_moves]:
