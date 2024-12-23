@@ -77,7 +77,7 @@ class StartChessGame:
                 color = "WHITE" if raw_board_value > 6 else ("BLACK" if 0 < raw_board_value < 7 else 0)
                 old_color = "WHITE" if old_raw_board_value > 6 else ("BLACK" if 0 < old_raw_board_value < 7 else 0)
                 if color != old_color:
-                    replaced.append((i, j, raw_board_value, old_raw_board_value, color != 0 and old_color != 0))
+                    replaced.append((i, j, int(raw_board_value), int(old_raw_board_value), color != 0 and old_color != 0))
 
         self.board_stack.pop(0)
         self.board_stack.append([])
