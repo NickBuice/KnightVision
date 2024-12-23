@@ -30,7 +30,7 @@ class StartChessGame:
     Initializes all information needed to model game and display raw inputs.  Contains method
     to translate raw board state to UCI move.
     """
-    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 10) -> None:
+    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 4) -> None:
         """
         Initializes game model, raw inputs, and stacks for in place mutation.
         """
@@ -71,7 +71,7 @@ class StartChessGame:
         matches inequalities to check for repetitive detection, then pushes
         UCI move to chessboard chess.Board object.
         """
-        replaced = []
+        replaced= []
         for i, (raw_board_row, old_raw_board_row) in enumerate(zip(self.raw_board, self.create_chessboard_to_raw())):
             for j, (raw_board_value, old_raw_board_value) in enumerate(zip(raw_board_row, old_raw_board_row)):
                 color = "WHITE" if raw_board_value > 6 else ("BLACK" if 0 < raw_board_value < 7 else 0)
@@ -83,15 +83,22 @@ class StartChessGame:
         self.board_stack.append([])
         for index, (i, j, new_piece, old_piece, capture) in enumerate(replaced[:-1]):
             for index_, (i_, j_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
-                if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture):
-                    if not (capture_ and capture):
-                        self.board_stack[-1].append((j_, i_, j, i) if new_piece_ == 0 else (j, i, j_, i_))
+                if not (capture and capture_) and new_piece * new_piece_ == 0 and new_piece != new_piece_:
+                    white_promotion = (old_piece == 4 or old_piece_ == 4) and (i == 6 and i_ == 7 or i == 7 and i_ == 6)
+                    black_promotion = (old_piece == 10 or old_piece_ == 10) and (i == 0 and i_ == 1 or i == 1 and i_ == 0)
+                    if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture):
+                        raw_move = (j_, i_, j, i, new_piece, False) if new_piece_ == 0 else (j, i, j_, i_, new_piece_, False)
+                        self.board_stack[-1].append(raw_move)
+                    elif white_promotion or black_promotion:
+                        raw_move = (j_, i_, j, i, new_piece, True) if new_piece_ == 0 else (j, i, j_, i_, new_piece_, True)
+                        self.board_stack[-1].append(raw_move)
 
         file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
+        key = {1: 'b', 2: 'q', 3: 'n', 4: 'q', 5: 'q', 6: 'r', 7: 'b', 8: 'q', 9: 'n', 10: 'q', 11: 'q', 12: 'r'}
         for raw_move in self.board_stack[-1]:
             if sum([raw_move in board for board in self.board_stack]) >= int(len(self.board_stack) * 0.75):  # magic number
-                old_j, old_i, new_j, new_i = raw_move
-                move = file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i)
+                old_j, old_i, new_j, new_i, piece, promotion = raw_move
+                move = file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i) + promotion * key[piece]
                 logging.info("Move %s, LatestBoardStack: %s", move, self.board_stack[-1])
                 if move in [chess.Move.uci(legal_move) for legal_move in self.chessboard.legal_moves]:
                     self.node = self.node.add_variation(chess.Move.from_uci(move))
