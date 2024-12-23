@@ -100,6 +100,12 @@ class StartChessGame:
                     self.node = self.node.add_variation(chess.Move.from_uci(move))
                     self.chessboard.push_uci(move)
                     logging.info("MOVE  %s PLAYED", move)
+                if self.chessboard.fen() != chess.STARTING_FEN and self.node.parent:
+                    if (move := move[2:] + move[:2]) == self.chessboard.peek().uci()[:4]:
+                        self.node.parent.variations.remove(self.node)
+                        self.node = self.node.parent
+                        self.chessboard.pop()
+                        logging.info("MOVE  %s UNDONE", move)
 
     def show_chessboard(self, force: bool = False) -> None:
         """
