@@ -7,7 +7,7 @@ import time
 
 on_startup, image_output_size, image_size = True, 640, 640  # Magic Numbers
 logging.basicConfig(filename='../misc/example.log', filemode='w', level=logging.DEBUG)
-video_capture = cv2.VideoCapture('../videos/video1.mp4')
+video_capture = cv2.VideoCapture('../videos/full_game.mp4')
 corner_prediction_model = YOLO('../models/BoardPredictionModels/best.pt')
 piece_prediction_model = YOLO('../models/PiecePredictionModels/best11.pt')
 while video_capture.isOpened():
@@ -27,6 +27,9 @@ while video_capture.isOpened():
         img, chess_game.raw_board = chessLocations.locate_pieces(img, piece_results, conversion_matrix, rotation)
         if chess_game.board_has_changed():
             chess_game.update_chessboard()
+            chess_game.skipped_move_search()
+            if fixes:= chess_game.fix_skipped_move():
+                chess_game.push_fix(fixes)
         chess_game.show_chessboard()
     if key_press == ord("q"):
         break
