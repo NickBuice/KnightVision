@@ -119,6 +119,7 @@ class StartChessGame:
         Searches for moves that likely skipped a turn.
         """
         file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
+        key = {1: 'b', 2: 'q', 3: 'n', 4: 'q', 5: 'q', 6: 'r', 7: 'b', 8: 'q', 9: 'n', 10: 'q', 11: 'q', 12: 'r'}
         turn, self.future_moves = self.chessboard.turn, []
         for raw_move in self.move_stack[-1]:
             if sum([raw_move in board for board in self.move_stack]) == len(self.move_stack):
