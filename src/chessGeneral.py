@@ -6,7 +6,7 @@ import chess.svg
 import chess.pgn
 import cairosvg
 import concurrent.futures
-from typing import Any, Optional
+from typing import Any
 
 
 def image_resize(image: cv2.typing.MatLike, new_size: int) -> cv2.typing.MatLike:
@@ -30,19 +30,19 @@ class StartChessGame:
     Initializes all information needed to model game and display raw inputs.  Contains method
     to translate raw board state to UCI move.
     """
-    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 4) -> None:
+    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 20) -> None:
         """
         Initializes game model, raw inputs, and stacks for in place mutation.
         """
         logging.info("--- STARTING GAME ---")
-        self.pgn_file: str = "../misc/TEST.pgn"
+        self.pgn_file: str = "C:/Users/User/Desktop/LichessPGN/LichessTEST.pgn"
         self.game: chess.pgn.Game = chess.pgn.Game.without_tag_roster()
         self.chessboard: chess.Board = chess.Board()
         self.old_chessboard: chess.Board = chess.Board()
         self.game.headers["White"], self.game.headers["Black"] = white, black
         self.node: chess.pgn.GameNode = self.game
         self.raw_board: np.ndarray = np.zeros((8, 8))
-        self.board_stack: list[list[Any]] = [[] for _ in range(board_delay)]
+        self.move_stack: list[list[Any]] = [[] for _ in range(board_delay)]
         self.future_moves = []
 
     def board_has_changed(self) -> bool:
@@ -81,8 +81,8 @@ class StartChessGame:
                 if color != old_color:
                     replaced.append((i, j, int(raw_board_value), int(old_raw_board_value), color != 0 and old_color != 0))
 
-        self.board_stack.pop(0)
-        self.board_stack.append([])
+        self.move_stack.pop(0)
+        self.move_stack.append([])
         for index, (i, j, new_piece, old_piece, capture) in enumerate(replaced[:-1]):
             for index_, (i_, j_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
                 if not (capture and capture_) and new_piece * new_piece_ == 0 and new_piece != new_piece_:
@@ -90,19 +90,19 @@ class StartChessGame:
                     black_promotion = (old_piece == 10 or old_piece_ == 10) and (i == 0 and i_ == 1 or i == 1 and i_ == 0)
                     if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture):
                         raw_move = (j_, i_, j, i, new_piece, False) if new_piece_ == 0 else (j, i, j_, i_, new_piece_, False)
-                        self.board_stack[-1].append(raw_move)
+                        self.move_stack[-1].append(raw_move)
                     elif white_promotion or black_promotion:
                         raw_move = (j_, i_, j, i, new_piece, True) if new_piece_ == 0 else (j, i, j_, i_, new_piece_, True)
-                        self.board_stack[-1].append(raw_move)
+                        self.move_stack[-1].append(raw_move)
 
         file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
         key = {1: 'b', 2: 'q', 3: 'n', 4: 'q', 5: 'q', 6: 'r', 7: 'b', 8: 'q', 9: 'n', 10: 'q', 11: 'q', 12: 'r'}
-        goal, target = int(len(self.board_stack)/2), int(len(self.board_stack) * 0.8 / 2) # magic number
-        for raw_move in self.board_stack[-1]:
-            if sum([raw_move in board for board in self.board_stack[goal:]]) >= target:
+        goal, target = int(len(self.move_stack) / 2), int(len(self.move_stack) * 0.8 / 2) # magic number
+        for raw_move in self.move_stack[-1]:
+            if sum([raw_move in board for board in self.move_stack[goal:]]) >= target:
                 old_j, old_i, new_j, new_i, piece, promotion = raw_move
                 move = file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i) + promotion * key[piece]
-                logging.info("Move %s, LatestBoardStack: %s", move, self.board_stack[-1])
+                logging.info("Move %s, LatestBoardStack: %s", move, self.move_stack[-1])
                 if move in [chess.Move.uci(legal_move) for legal_move in self.chessboard.legal_moves]:
                     self.node = self.node.add_variation(chess.Move.from_uci(move))
                     self.chessboard.push_uci(move)
@@ -119,10 +119,9 @@ class StartChessGame:
         Searches for moves that likely skipped a turn.
         """
         file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
-        key = {1: 'b', 2: 'q', 3: 'n', 4: 'q', 5: 'q', 6: 'r', 7: 'b', 8: 'q', 9: 'n', 10: 'q', 11: 'q', 12: 'r'}
         turn, self.future_moves = self.chessboard.turn, []
-        for raw_move in self.board_stack[-1]:
-            if sum([raw_move in board for board in self.board_stack]) == len(self.board_stack):
+        for raw_move in self.move_stack[-1]:
+            if sum([raw_move in board for board in self.move_stack]) == len(self.move_stack):
                 old_j, old_i, new_j, new_i, piece, promotion = raw_move
                 if turn != (chess.WHITE if piece > 6 else chess.BLACK):
                     self.future_moves.append(file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i) + promotion * key[piece])
