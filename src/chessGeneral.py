@@ -42,7 +42,8 @@ class StartChessGame:
         self.game.headers["White"], self.game.headers["Black"] = white, black
         self.node: chess.pgn.GameNode = self.game
         self.raw_board: chess.Board = chess.Board(fen="8/8/8/8/8/8/8/8")
-        self.move_stack: list[list[Any]] = [[] for _ in range(board_delay)]
+        self.move_stack: list[list[chess.Move]] = [[] for _ in range(board_delay)]
+        self.board_stack: list[chess.Board] = [self.raw_board.copy() for _ in range(board_delay)]
         self.future_moves = []
 
     def board_has_changed(self) -> bool:
@@ -85,6 +86,8 @@ class StartChessGame:
                         from_square, to_square, promotion = (square_, square, new_piece.piece_type) if not new_piece_ else (square, square_, new_piece_.piece_type)
                         self.move_stack[-1].append(chess.Move(from_square=from_square, to_square=to_square, promotion=promotion))
 
+        self.board_stack.pop(0)
+        self.board_stack.append(self.raw_board)
         goal, target = int(len(self.move_stack) / 2), int(len(self.move_stack) * 0.8 / 2) # magic number
         for move in self.move_stack[-1]:
             if sum([move in moves for moves in self.move_stack[goal:]]) >= target:
@@ -130,11 +133,11 @@ class StartChessGame:
         Verifies fix matches raw board chess.Board object before pushing
         to pgn and chessboard chess.Board object.
         """
-        squares = self.raw_board.piece_map().keys()
-        print(self.raw_board)
+        goal, target = int(len(self.move_stack) / 2), int(len(self.move_stack) * 0.8 / 2)
         for move in potential_fixes:
-            print(move, move.from_square not in squares, move.to_square in squares)
-            if move.from_square not in squares and move.to_square in squares:
+            test1 = sum([move.from_square not in raw_board.piece_map().keys() for raw_board in self.board_stack[goal:]])
+            test2 = sum([move.to_square in raw_board.piece_map().keys() for raw_board in self.board_stack[goal:]])
+            if test1 >= target and test2 >= target:
                 self.node = self.node.add_variation(move)
                 self.chessboard.push(move)
                 logging.info("ARTIFICIAL MOVE  %s PLAYED", move)
