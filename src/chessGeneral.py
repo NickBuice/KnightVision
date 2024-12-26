@@ -41,7 +41,7 @@ class StartChessGame:
         self.old_chessboard: chess.Board = chess.Board()
         self.game.headers["White"], self.game.headers["Black"] = white, black
         self.node: chess.pgn.GameNode = self.game
-        self.raw_board: np.ndarray = np.zeros((8, 8))
+        self.raw_board: chess.Board = chess.Board(fen="8/8/8/8/8/8/8/8")
         self.move_stack: list[list[Any]] = [[] for _ in range(board_delay)]
         self.future_moves = []
 
@@ -49,23 +49,7 @@ class StartChessGame:
         """
         Outputs equality of new and old raw numpy board states.
         """
-        return not np.array_equal(self.raw_board, self.create_chessboard_to_raw())
-
-    def create_chessboard_to_raw(self) -> np.ndarray:
-        """
-        Creates numpy array from most recent chessboard chess.Board object.
-        """
-        key = {'0': 0, 'b': 1, 'k': 2, 'n': 3, 'p': 4, 'q': 5, 'r': 6, 'B': 7, 'K': 8, 'N': 9, 'P': 10, 'Q': 11, 'R': 12}
-        fen = self.chessboard.fen().split()[0]
-        for value in fen:
-            if value.isnumeric():
-                fen = fen.replace(value, int(value)*'0')
-        raw_board_rows = fen.split('/')
-        raw_board = np.zeros((8, 8))
-        for rank in range(0, 8):
-            for file in range(0, 8):
-                raw_board[rank][file] = key[raw_board_rows[rank][file]]
-        return raw_board
+        return  self.raw_board.fen().split(" ")[0] != self.chessboard.fen().split(" ")[0]
 
     def update_chessboard(self) -> None:
         """
@@ -73,42 +57,44 @@ class StartChessGame:
         matches inequalities to check for repetitive detection, then pushes
         UCI move to chessboard chess.Board object.
         """
-        replaced= []
-        for i, (raw_board_row, old_raw_board_row) in enumerate(zip(self.raw_board, self.create_chessboard_to_raw())):
-            for j, (raw_board_value, old_raw_board_value) in enumerate(zip(raw_board_row, old_raw_board_row)):
-                color = "WHITE" if raw_board_value > 6 else ("BLACK" if 0 < raw_board_value < 7 else 0)
-                old_color = "WHITE" if old_raw_board_value > 6 else ("BLACK" if 0 < old_raw_board_value < 7 else 0)
-                if color != old_color:
-                    replaced.append((i, j, int(raw_board_value), int(old_raw_board_value), color != 0 and old_color != 0))
+        replaced = []
+        chessboard_map = self.chessboard.piece_map()
+        raw_map = self.raw_board.piece_map()
+        for square in chess.SQUARES:
+            if square in raw_map and square in chessboard_map:
+                if raw_map[square].color != chessboard_map[square].color:
+                    replaced.append((square, raw_map[square], chessboard_map[square], True))
+            elif square in raw_map and square not in chessboard_map:
+                replaced.append((square, raw_map[square], None, False))
+            elif square not in raw_map and square in chessboard_map:
+                replaced.append((square, None, chessboard_map[square], False))
 
         self.move_stack.pop(0)
         self.move_stack.append([])
-        for index, (i, j, new_piece, old_piece, capture) in enumerate(replaced[:-1]):
-            for index_, (i_, j_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
-                if not (capture and capture_) and new_piece * new_piece_ == 0 and new_piece != new_piece_:
-                    white_promotion = (old_piece == 4 or old_piece_ == 4) and (i == 6 and i_ == 7 or i == 7 and i_ == 6)
-                    black_promotion = (old_piece == 10 or old_piece_ == 10) and (i == 0 and i_ == 1 or i == 1 and i_ == 0)
+        for index, (square, new_piece, old_piece, capture) in enumerate(replaced[:-1]):
+            for index_, (square_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
+                if not (capture and capture_) and (not new_piece or not new_piece_) and new_piece != new_piece_:
+                    white_pawn = old_piece == chess.Piece.from_symbol('P') or old_piece_ == chess.Piece.from_symbol('P')
+                    white_rank = square // 8 == 6 and square_ // 8 == 7 or square // 8 == 7 and square_ // 8 == 6
+                    black_pawn = old_piece == chess.Piece.from_symbol('p') or old_piece_ == chess.Piece.from_symbol('p')
+                    black_rank = square // 8 == 1 and square_ // 8 == 0 or square // 8 == 1 and square_ // 8 == 0
                     if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture):
-                        raw_move = (j_, i_, j, i, new_piece, False) if new_piece_ == 0 else (j, i, j_, i_, new_piece_, False)
-                        self.move_stack[-1].append(raw_move)
-                    elif white_promotion or black_promotion:
-                        raw_move = (j_, i_, j, i, new_piece, True) if new_piece_ == 0 else (j, i, j_, i_, new_piece_, True)
-                        self.move_stack[-1].append(raw_move)
+                        from_square, to_square = (square_, square) if not new_piece_ else (square, square_)
+                        self.move_stack[-1].append(chess.Move(from_square=from_square, to_square=to_square))
+                    elif white_pawn and white_rank or black_pawn and black_rank:
+                        from_square, to_square, promotion = (square_, square, new_piece.piece_type) if not new_piece_ else (square, square_, new_piece_.piece_type)
+                        self.move_stack[-1].append(chess.Move(from_square=from_square, to_square=to_square, promotion=promotion))
 
-        file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
-        key = {1: 'b', 2: 'q', 3: 'n', 4: 'q', 5: 'q', 6: 'r', 7: 'b', 8: 'q', 9: 'n', 10: 'q', 11: 'q', 12: 'r'}
         goal, target = int(len(self.move_stack) / 2), int(len(self.move_stack) * 0.8 / 2) # magic number
-        for raw_move in self.move_stack[-1]:
-            if sum([raw_move in board for board in self.move_stack[goal:]]) >= target:
-                old_j, old_i, new_j, new_i, piece, promotion = raw_move
-                move = file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i) + promotion * key[piece]
+        for move in self.move_stack[-1]:
+            if sum([move in moves for moves in self.move_stack[goal:]]) >= target:
                 logging.info("Move %s, LatestBoardStack: %s", move, self.move_stack[-1])
-                if move in [chess.Move.uci(legal_move) for legal_move in self.chessboard.legal_moves]:
-                    self.node = self.node.add_variation(chess.Move.from_uci(move))
-                    self.chessboard.push_uci(move)
+                if move in self.chessboard.legal_moves:
+                    self.node = self.node.add_variation(move)
+                    self.chessboard.push(move)
                     logging.info("MOVE  %s PLAYED", move)
                 if self.chessboard.fen() != chess.STARTING_FEN and self.node.parent:
-                    if (move := move[2:] + move[:2]) == self.chessboard.peek().uci()[:4]:
+                    if move.uci()[2:] + move.uci()[:2] == self.chessboard.peek().uci()[:4]:
                         self.node.parent.variations.remove(self.node)
                         self.node = self.node.parent
                         self.chessboard.pop()
@@ -118,42 +104,39 @@ class StartChessGame:
         """
         Searches for moves that likely skipped a turn.
         """
-        file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
-        key = {1: 'b', 2: 'q', 3: 'n', 4: 'q', 5: 'q', 6: 'r', 7: 'b', 8: 'q', 9: 'n', 10: 'q', 11: 'q', 12: 'r'}
-        turn, self.future_moves = self.chessboard.turn, []
-        for raw_move in self.move_stack[-1]:
-            if sum([raw_move in board for board in self.move_stack]) == len(self.move_stack):
-                old_j, old_i, new_j, new_i, piece, promotion = raw_move
-                if turn != (chess.WHITE if piece > 6 else chess.BLACK):
-                    self.future_moves.append(file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i) + promotion * key[piece])
+        self.future_moves = []
+        for move in self.move_stack[-1]:
+            if sum([move in moves for moves in self.move_stack]) == len(self.move_stack):
+                if self.chessboard.turn != self.chessboard.color_at(move.from_square):
+                    self.future_moves.append(move)
                     logging.info("DETECTED FUTURE MOVE: %s", self.future_moves[-1])
 
-    def fix_skipped_move(self) -> list[str]:
+    def fix_skipped_move(self) -> list[chess.Move]:
         """
         Finds potential moves to fix the board.
         """
         potential_fixes = []
         for future_move in self.future_moves:
-            for move in [chess.Move.uci(legal_move) for legal_move in self.chessboard.legal_moves]:
+            for move in self.chessboard.legal_moves:
                 dummy_board = self.chessboard.copy()
-                dummy_board.push_uci(move)
-                if future_move in [chess.Move.uci(legal_move) for legal_move in dummy_board.legal_moves]:
+                dummy_board.push(move)
+                if future_move in dummy_board.legal_moves:
                     potential_fixes.append(move)
                     logging.info("POTENTIAL FIX: %s", move)
         return potential_fixes
 
     def push_fix(self, potential_fixes) -> None:
         """
-        Verifies initial fix is a capture before pushing
+        Verifies fix matches raw board chess.Board object before pushing
         to pgn and chessboard chess.Board object.
         """
+        squares = self.raw_board.piece_map().keys()
+        print(self.raw_board)
         for move in potential_fixes:
-            ranks = {'1': 7, '2': 6, '3': 5, '4': 4, '5': 3, '6': 2, '7': 1, '8': 0}
-            files = {'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e': 4, 'f': 5, 'g': 6, 'h': 7}
-            old_rank, old_file, new_rank, new_file = ranks[move[1]], files[move[0]], ranks[move[3]], files[move[2]]
-            if self.raw_board[old_rank][old_file] == 0 and self.raw_board[new_rank][new_file] != 0:
-                self.node = self.node.add_variation(chess.Move.from_uci(move))
-                self.chessboard.push_uci(move)
+            print(move, move.from_square not in squares, move.to_square in squares)
+            if move.from_square not in squares and move.to_square in squares:
+                self.node = self.node.add_variation(move)
+                self.chessboard.push(move)
                 logging.info("ARTIFICIAL MOVE  %s PLAYED", move)
                 break
 
