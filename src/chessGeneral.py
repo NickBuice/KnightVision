@@ -6,7 +6,6 @@ import chess.svg
 import chess.pgn
 import cairosvg
 import concurrent.futures
-from typing import Any
 
 
 def image_resize(image: cv2.typing.MatLike, new_size: int) -> cv2.typing.MatLike:
@@ -52,6 +51,21 @@ class StartChessGame:
         """
         return  self.raw_board.fen().split(" ")[0] != self.chessboard.fen().split(" ")[0]
 
+    def update_move_stack(self) -> None:
+        """
+        Removes first index of move stack and adds empty list to top of stack.
+        """
+        self.move_stack.pop(0)
+        self.move_stack.append([])
+
+    def update_board_stack(self) -> None:
+        """
+        Removes first index of board stack and adds latest raw board
+         chess.Board object to top of stack.
+        """
+        self.board_stack.pop(0)
+        self.board_stack.append(self.raw_board)
+
     def update_chessboard(self) -> None:
         """
         Compares new and old raw numpy board states for inequalities, then
@@ -70,8 +84,6 @@ class StartChessGame:
             elif square not in raw_map and square in chessboard_map:
                 replaced.append((square, None, chessboard_map[square], False))
 
-        self.move_stack.pop(0)
-        self.move_stack.append([])
         for index, (square, new_piece, old_piece, capture) in enumerate(replaced[:-1]):
             for index_, (square_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
                 if not (capture and capture_) and (not new_piece or not new_piece_) and new_piece != new_piece_:
@@ -86,8 +98,6 @@ class StartChessGame:
                         from_square, to_square, promotion = (square_, square, new_piece.piece_type) if not new_piece_ else (square, square_, new_piece_.piece_type)
                         self.move_stack[-1].append(chess.Move(from_square=from_square, to_square=to_square, promotion=promotion))
 
-        self.board_stack.pop(0)
-        self.board_stack.append(self.raw_board)
         goal, target = int(len(self.move_stack) / 2), int(len(self.move_stack) * 0.8 / 2) # magic number
         for move in self.move_stack[-1]:
             if sum([move in moves for moves in self.move_stack[goal:]]) >= target:
@@ -109,7 +119,7 @@ class StartChessGame:
         """
         self.future_moves = []
         for move in self.move_stack[-1]:
-            if sum([move in moves for moves in self.move_stack]) == len(self.move_stack):
+            if sum([move in moves for moves in self.move_stack]) >= len(self.move_stack) * .8:
                 if self.chessboard.turn != self.chessboard.color_at(move.from_square):
                     self.future_moves.append(move)
                     logging.info("DETECTED FUTURE MOVE: %s", self.future_moves[-1])
