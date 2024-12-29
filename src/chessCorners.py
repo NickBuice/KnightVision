@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-from typing import Any, Optional
+from typing import Any
 
 
 def find_intersections(line_endpoints: list[tuple[tuple[int, int], tuple[int, int]]]) -> list[tuple[int, int]]:
@@ -85,27 +85,10 @@ def sort_clockwise(raw_pts: list[tuple[int, int]]) -> list[tuple[int, int]]:
     return [pt for _, pt in sorted(zip(angles, raw_pts))]
 
 
-def board_rotation(birdseye_img: cv2.typing.MatLike, size: int = 400) -> bool:
+def find_chessboard_corners(corner_results_data: Any) -> np.ndarray:
     """
-    Checks for needed board rotation for proper digital chessboard orientation.
+    Uses predicted corners to create conversion matrix.
     """
-    gray_birdseye_img = cv2.cvtColor(birdseye_img, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(gray_birdseye_img, 150, 255, cv2.THRESH_BINARY)
-    fake = np.zeros((size, size))
-    for i in range(size):
-        for j in range(size):
-            if (i // (size/8)) % 2 == (j // (size/8)) % 2:
-                fake[i][j] = 255
-    diff = abs(fake - thresh)
-    return np.average(diff) > np.average(thresh)
-
-
-def find_chessboard_corners(results_img: cv2.typing.MatLike,
-                            corner_results_data: Any) -> tuple[Optional[np.ndarray], bool]:
-    """
-    Uses predicted corners to create conversion matrix and check need for board alignment.
-    """
-    top_view = np.zeros((400, 400, 3)).astype(np.uint8)
     transformation_matrix = None
     for result in corner_results_data:
         result_masks = result.masks
@@ -116,6 +99,4 @@ def find_chessboard_corners(results_img: cv2.typing.MatLike,
                     real = np.array(sort_clockwise(corners), dtype=np.float32)
                     ideal = np.array([[0, 0], [400, 0], [400, 400], [0, 400]], dtype=np.float32)
                     transformation_matrix = cv2.getPerspectiveTransform(real, ideal)
-                    top_view = cv2.warpPerspective(results_img, transformation_matrix, (400, 400)).astype(np.uint8)
-                    top_view = cv2.rotate(top_view, cv2.ROTATE_90_CLOCKWISE).astype(np.uint8)
-    return transformation_matrix, board_rotation(top_view, 400)
+    return transformation_matrix
