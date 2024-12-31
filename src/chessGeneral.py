@@ -6,7 +6,6 @@ import chess.svg
 import chess.pgn
 import cairosvg
 import concurrent.futures
-from typing import Any
 
 
 def image_resize(image: cv2.typing.MatLike, new_size: int) -> cv2.typing.MatLike:
@@ -30,40 +29,42 @@ class StartChessGame:
     Initializes all information needed to model game and display raw inputs.  Contains method
     to translate raw board state to UCI move.
     """
-    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 10) -> None:
+    def __init__(self, white: str = "Player 1", black: str = "Player 2", board_delay: int = 20) -> None:
         """
         Initializes game model, raw inputs, and stacks for in place mutation.
         """
-        self.pgn_file: str = "../misc/TEST.pgn"
+        logging.info("--- STARTING GAME ---")
+        self.pgn_file: str = "C:/Users/User/Desktop/LichessPGN/LichessTEST.pgn"
         self.game: chess.pgn.Game = chess.pgn.Game.without_tag_roster()
         self.chessboard: chess.Board = chess.Board()
         self.old_chessboard: chess.Board = chess.Board()
         self.game.headers["White"], self.game.headers["Black"] = white, black
         self.node: chess.pgn.GameNode = self.game
-        self.raw_board: np.ndarray = np.zeros((8, 8))
-        self.board_stack: list[list[Any]] = [[] for _ in range(board_delay)]
+        self.raw_board: chess.Board = chess.Board(fen="8/8/8/8/8/8/8/8")
+        self.move_stack: list[list[chess.Move]] = [[] for _ in range(board_delay)]
+        self.board_stack: list[chess.Board] = [self.raw_board.copy() for _ in range(board_delay)]
+        self.future_moves = []
 
     def board_has_changed(self) -> bool:
         """
         Outputs equality of new and old raw numpy board states.
         """
-        return not np.array_equal(self.raw_board, self.create_chessboard_to_raw())
+        return  self.raw_board.fen().split(" ")[0] != self.chessboard.fen().split(" ")[0]
 
-    def create_chessboard_to_raw(self) -> np.ndarray:
+    def update_move_stack(self) -> None:
         """
-        Creates numpy array from most recent chessboard chess.Board object.
+        Removes first index of move stack and adds empty list to top of stack.
         """
-        key = {'0': 0, 'b': 1, 'k': 2, 'n': 3, 'p': 4, 'q': 5, 'r': 6, 'B': 7, 'K': 8, 'N': 9, 'P': 10, 'Q': 11, 'R': 12}
-        fen = self.chessboard.fen().split()[0]
-        for value in fen:
-            if value.isnumeric():
-                fen = fen.replace(value, int(value)*'0')
-        raw_board_rows = fen.split('/')
-        raw_board = np.zeros((8, 8))
-        for rank in range(0, 8):
-            for file in range(0, 8):
-                raw_board[rank][file] = key[raw_board_rows[rank][file]]
-        return raw_board
+        self.move_stack.pop(0)
+        self.move_stack.append([])
+
+    def update_board_stack(self) -> None:
+        """
+        Removes first index of board stack and adds latest raw board
+         chess.Board object to top of stack.
+        """
+        self.board_stack.pop(0)
+        self.board_stack.append(self.raw_board)
 
     def update_chessboard(self) -> None:
         """
@@ -71,36 +72,86 @@ class StartChessGame:
         matches inequalities to check for repetitive detection, then pushes
         UCI move to chessboard chess.Board object.
         """
-        self.board_stack.pop(0)
-        self.board_stack.append([])
-        file_names = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
         replaced = []
+        chessboard_map = self.chessboard.piece_map()
+        raw_map = self.raw_board.piece_map()
+        for square in chess.SQUARES:
+            if square in raw_map and square in chessboard_map:
+                if raw_map[square].color != chessboard_map[square].color:
+                    replaced.append((square, raw_map[square], chessboard_map[square], True))
+            elif square in raw_map and square not in chessboard_map:
+                replaced.append((square, raw_map[square], None, False))
+            elif square not in raw_map and square in chessboard_map:
+                replaced.append((square, None, chessboard_map[square], False))
 
-        for i, (raw_board_row, old_raw_board_row) in enumerate(zip(self.raw_board, self.create_chessboard_to_raw())):
-            for j, (raw_board_value, old_raw_board_value) in enumerate(zip(raw_board_row, old_raw_board_row)):
-                color = "WHITE" if raw_board_value > 6 else ("BLACK" if 0 < raw_board_value < 7 else 0)
-                old_color = "WHITE" if old_raw_board_value > 6 else ("BLACK" if 0 < old_raw_board_value < 7 else 0)
-                if color != old_color:
-                    replaced.append((i, j, raw_board_value, old_raw_board_value, color != 0 and old_color != 0))
+        for index, (square, new_piece, old_piece, capture) in enumerate(replaced[:-1]):
+            for index_, (square_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
+                if not (capture and capture_) and (not new_piece or not new_piece_) and new_piece != new_piece_:
+                    white_pawn = old_piece == chess.Piece.from_symbol('P') or old_piece_ == chess.Piece.from_symbol('P')
+                    white_rank = square // 8 == 6 and square_ // 8 == 7 or square // 8 == 7 and square_ // 8 == 6
+                    black_pawn = old_piece == chess.Piece.from_symbol('p') or old_piece_ == chess.Piece.from_symbol('p')
+                    black_rank = square // 8 == 1 and square_ // 8 == 0 or square // 8 == 1 and square_ // 8 == 0
+                    if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture):
+                        from_square, to_square = (square_, square) if not new_piece_ else (square, square_)
+                        self.move_stack[-1].append(chess.Move(from_square=from_square, to_square=to_square))
+                    elif white_pawn and white_rank or black_pawn and black_rank:
+                        from_square, to_square, promotion = (square_, square, new_piece.piece_type) if not new_piece_ else (square, square_, new_piece_.piece_type)
+                        self.move_stack[-1].append(chess.Move(from_square=from_square, to_square=to_square, promotion=promotion))
 
-        for index, (i, j, new_piece, old_piece, capture) in enumerate(replaced[:-1]):
-            for index_, (i_, j_, new_piece_, old_piece_, capture_) in enumerate(replaced[index + 1:]):
-                if (capture_ or new_piece == old_piece_) and (new_piece_ == old_piece or capture):
-                    if not (capture_ and capture):
-                        if new_piece_ == 0:
-                            self.board_stack[-1].append((j_, i_, j, i, capture_, capture))
-                        else:
-                            self.board_stack[-1].append((j, i, j_, i_, capture, capture_))
-
-        for raw_move in self.board_stack[-1]:
-            if sum([raw_move in board for board in self.board_stack]) >= int(len(self.board_stack) * 0.75):  # magic number
-                old_j, old_i, new_j, new_i, capture, capture_ = raw_move
-                move = file_names[old_j] + str(8 - old_i) + file_names[new_j] + str(8 - new_i)
-                logging.info("Move %s, LatestBoardStack: %s", move, self.board_stack[-1])
-                if move in [chess.Move.uci(legal_move) for legal_move in self.chessboard.legal_moves]:
-                    self.node = self.node.add_variation(chess.Move.from_uci(move))
-                    self.chessboard.push_uci(move)
+        goal, target = int(len(self.move_stack) / 2), int(len(self.move_stack) * 0.8 / 2) # magic number
+        for move in self.move_stack[-1]:
+            if sum([move in moves for moves in self.move_stack[goal:]]) >= target:
+                logging.info("Move %s, LatestBoardStack: %s", move, self.move_stack[-1])
+                if move in self.chessboard.legal_moves:
+                    self.node = self.node.add_variation(move)
+                    self.chessboard.push(move)
                     logging.info("MOVE  %s PLAYED", move)
+                if self.chessboard.fen() != chess.STARTING_FEN and self.node.parent:
+                    if move.uci()[2:] + move.uci()[:2] == self.chessboard.peek().uci()[:4]:
+                        self.node.parent.variations.remove(self.node)
+                        self.node = self.node.parent
+                        self.chessboard.pop()
+                        logging.info("MOVE  %s UNDONE", move)
+
+    def skipped_move_search(self) -> None:
+        """
+        Searches for moves that likely skipped a turn.
+        """
+        self.future_moves = []
+        for move in self.move_stack[-1]:
+            if sum([move in moves for moves in self.move_stack]) >= len(self.move_stack) * .8:
+                if self.chessboard.turn != self.chessboard.color_at(move.from_square):
+                    self.future_moves.append(move)
+                    logging.info("DETECTED FUTURE MOVE: %s", self.future_moves[-1])
+
+    def fix_skipped_move(self) -> list[chess.Move]:
+        """
+        Finds potential moves to fix the board.
+        """
+        potential_fixes = []
+        for future_move in self.future_moves:
+            for move in self.chessboard.legal_moves:
+                dummy_board = self.chessboard.copy()
+                dummy_board.push(move)
+                if future_move in dummy_board.legal_moves:
+                    potential_fixes.append(move)
+                    logging.info("POTENTIAL FIX: %s", move)
+        return potential_fixes
+
+    def push_fix(self, potential_fixes) -> None:
+        """
+        Verifies fix matches raw board chess.Board object before pushing
+        to pgn and chessboard chess.Board object.
+        """
+        goal, target = int(len(self.move_stack) / 2), int(len(self.move_stack) * 0.8 / 2)
+        for move in potential_fixes:
+            test1 = sum([move.from_square not in raw_board.piece_map().keys() for raw_board in self.board_stack[goal:]])
+            test2 = sum([move.to_square in raw_board.piece_map().keys() for raw_board in self.board_stack[goal:]])
+            if test1 >= target and test2 >= target:
+                self.node = self.node.add_variation(move)
+                self.chessboard.push(move)
+                logging.info("ARTIFICIAL MOVE  %s PLAYED", move)
+                break
 
     def show_chessboard(self, force: bool = False) -> None:
         """
