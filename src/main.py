@@ -22,7 +22,7 @@ while video_capture.isOpened():
         corner_results = corner_prediction_model.predict(img, imgsz=image_size, verbose=False)
         conversion_matrix = chessCorners.find_chessboard_corners(corner_results)
         rotation = chessLocations.orient_board(piece_results, conversion_matrix)
-        chess_game = chessGeneral.StartChessGame(board_delay=10)
+        chess_game = chessGeneral.StartChessGame(board_delay=15)
         chess_game.show_chessboard(force=True)
     else:
         img, chess_game.raw_board = chessLocations.locate_pieces(img, piece_results, conversion_matrix, rotation)
