@@ -9,7 +9,7 @@ on_startup, image_output_size, image_size = True, 640, 640  # Magic Numbers
 logging.basicConfig(filename='../misc/example.log', filemode='w', level=logging.DEBUG)
 video_capture = cv2.VideoCapture('../videos/full_game.mp4')
 corner_prediction_model = YOLO('../models/BoardPredictionModels/best.pt')
-piece_prediction_model = YOLO('../models/PiecePredictionModels/best.pt')
+piece_prediction_model = YOLO('../models/PiecePredictionModels/ClassifyByColor/best.pt')
 while video_capture.isOpened():
     successful_capture, frame = video_capture.read()
     if not successful_capture:
@@ -18,14 +18,14 @@ while video_capture.isOpened():
     piece_results = piece_prediction_model.predict(img, imgsz=image_size, agnostic_nms=True, verbose=False)
     key_press = cv2.waitKey(1)
     if key_press == ord(" ") or on_startup:
-        start, count, on_startup = time.time(), 0, False
         corner_results = corner_prediction_model.predict(img, imgsz=image_size, verbose=False)
         conversion_matrix = chessCorners.find_chessboard_corners(corner_results)
         rotation = chessLocations.orient_board(piece_results, conversion_matrix)
-        chess_game = chessGeneral.StartChessGame(board_delay=15)
+        chess_game = chessGeneral.StartChessGame(board_delay=20)
         chess_game.show_chessboard(force=True)
+        start, count, on_startup = time.time(), 0, False
     else:
-        img, chess_game.raw_board = chessLocations.locate_pieces(img, piece_results, conversion_matrix, rotation)
+        img, chess_game.raw_map = chessLocations.locate_pieces(img, piece_results, conversion_matrix, rotation)
         chess_game.update_board_stack(), chess_game.update_move_stack()
         if chess_game.board_has_changed():
             chess_game.update_chessboard()
