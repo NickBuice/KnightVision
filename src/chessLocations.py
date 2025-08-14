@@ -53,12 +53,11 @@ def orient_board(piece_results_data: Any, transformation_matrix: Optional[np.nda
 
 
 def locate_pieces(results_img: cv2.typing.MatLike, piece_results_data: Any, transformation_matrix: Optional[np.ndarray],
-                  rotate_board: str) -> tuple[cv2.typing.MatLike, chess.Board]:
+                  rotate_board: str) -> tuple[cv2.typing.MatLike, dict]:
     """
     Transforms chess piece image data into raw numpy board.
     """
-    key = {1: 'b', 2: 'k', 3: 'n', 4: 'p', 5: 'q', 6: 'r', 7: 'B', 8: 'K', 9: 'N', 10: 'P', 11: 'Q', 12: 'R'}
-    out_board = chess.Board(fen="8/8/8/8/8/8/8/8")
+    out_board_map = dict()
     piece_names, mapped_pts = [], []
     result = piece_results_data[0]
     results_img = result.plot(img=results_img)
@@ -68,7 +67,7 @@ def locate_pieces(results_img: cv2.typing.MatLike, piece_results_data: Any, tran
             real_y = adjust_for_angle(real_y, height=abs(box[3] - box[1]))
             ideal = np.matmul(transformation_matrix, [real_x, real_y, 1])
             if 0 <= ideal[0] / ideal[2] < 400 and 0 <= ideal[1] / ideal[2] < 400:
-                piece_names.append(int(box[5] + 1))
+                piece_names.append(int(box[5]))  # change (int(box[5])) to (int(box[5]) // 6) for ClassifyByType model
                 mapped_pts.append((map_points(ideal[1] / ideal[2]), map_points(ideal[0] / ideal[2])))
         if rotate_board == "ROTATE 90 CLOCKWISE":
             mapped_pts = [(7 - pt[1], pt[0]) for pt in mapped_pts]
@@ -77,5 +76,5 @@ def locate_pieces(results_img: cv2.typing.MatLike, piece_results_data: Any, tran
         elif rotate_board == "ROTATE 90 COUNTERCLOCKWISE":
             mapped_pts = [(pt[1], 7 - pt[0]) for pt in mapped_pts]
         for index, (row, column) in enumerate(mapped_pts):
-            out_board.set_piece_at(chess.square(row, column), chess.Piece.from_symbol(key[piece_names[index]]))
-    return results_img, out_board
+            out_board_map[chess.square(row, column)] = piece_names[index]
+    return results_img, out_board_map
