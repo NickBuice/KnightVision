@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "knightvision"
+version = "0.1.0"
+description = "CLI + library to convert chess video to PGN"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Nicholas W. Buice", email = "nw.buice@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = [
+  "chess>=1.11.2",
+  "numpy<2.3.0,>=2",
+  "opencv-python>=4.10",
+  "onnxruntime>=1.18",
+  "typer>=0.9",
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Topic :: Games/Entertainment :: Board Games",
+]
+
+[project.urls]
+Homepage = "https://github.com/nickbuice/knightvision"
+
+[project.scripts]
+knightvision = "knightvision.cli:app"
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
+
+[tool.hatch.build.targets.wheel]
+only-include = [
+    "src/knightvision",
+    "LICENSE",
+    "README.md",
+]
+
+[[tool.mypy.overrides]]
+module = ["onnxruntime", "onnxruntime.*"]
+ignore_missing_imports = true
+
