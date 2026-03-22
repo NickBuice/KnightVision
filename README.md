@@ -1,35 +1,74 @@
 # KnightVision ♟️
 
-KnightVision is a computer vision tool that converts **real-world chess games** (recorded from video) into **PGN** (Portable Game Notation) in real time.  It’s designed to showcase applied machine learning and computer vision, with a CLI interface for developers and chess enthusiasts.
+KnightVision is a computer vision pipeline that converts real-world chess games (captured on video) into PGN (Portable Game Notation) in near real time.
+
+The system detects the board, classifies pieces, and reconstructs game state across frames to produce a valid sequence of moves from raw video input.
 
 ---
 
 ## Features
 
--  Detects chessboards and pieces from video input  
--  Tracks game state and outputs valid **PGN**  
--  Supports ONNX models for fast inference  
--  Simple CLI powered by [Typer](https://typer.tiangolo.com/)  
-- Installable via `pip` 
+- Detects chessboards and pieces from video frames  
+- Reconstructs game state over time and outputs valid PGN  
+- Uses ONNX models for efficient inference  
+- Simple CLI built with Typer  
+- Installable via pip  
+
+---
+
+## How it works
+
+1. Detect the chessboard region in each frame  
+2. Classify pieces on the board using a trained model  
+3. Track changes between frames to infer moves  
+4. Convert those moves into standard PGN format  
+
+---
+
+## Example Output
+
+```text
+[Event "Casual Game"]
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 ...
+```
 
 ---
 
 ## Quick start
 
-
-1) Install
+### Install
 ```bash
 pip install knightvision
-````
-2) One-time: download models (from the latest GitHub release)
+```
+
+### Download models (one-time setup)
 ```bash
 knightvision models download all
-````
-3) See where models are resolved from
-```bash
-4) knightvision models locate
-````
-4) Run on a video and show
-```bash
-5) knightvision run --video /path/to/game.mp4 --out /path/to/out.pgn --show
 ```
+
+### Locate models
+```bash
+knightvision models locate
+```
+
+### Run on a video
+```bash
+knightvision run --video /path/to/game.mp4 --out /path/to/output.pgn --show
+```
+
+---
+
+## Notes
+
+- Performance depends on video quality, lighting, and camera angle  
+- Some edge cases (e.g., underpromotion) may not be fully supported  
+
+---
+
+## Tech Stack
+
+- Python  
+- OpenCV  
+- ONNX Runtime  
+- YOLO-based object detection  
+- Typer (CLI)
