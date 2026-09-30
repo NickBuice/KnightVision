@@ -9,7 +9,7 @@ from .game import StartChessGame
 
 
 def run_video_to_pgn(
-    video: Union[str, int],
+    source: Union[str, int],
     board_model: str,
     piece_model: str,
     out: str = "out.pgn",
@@ -22,7 +22,7 @@ def run_video_to_pgn(
     models, board_input_shapes, piece_input_shapes, board_precision, piece_precision = load_models(board_model, piece_model, device=device)
     game = StartChessGame(board_delay=40)
 
-    for index, frame in iterate_frames(video, 640):
+    for index, frame in iterate_frames(source, 640):
         piece_name_processed_frame, piece_pad = preprocess(frame, piece_input_shapes, piece_precision)
         piece_outputs = models.predict_color(piece_name_processed_frame)
         piece_results = color_postprocess(frame, piece_outputs, piece_pad, piece_input_shapes)

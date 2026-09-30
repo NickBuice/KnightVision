@@ -43,9 +43,11 @@ def locate():
         typer.echo(f"{n} model: {status}")
 
 
-@app.command(help="Process a video into PGN")
+@app.command(help="Process a video or live camera stream into PGN")
 def run(
-    video: Path = typer.Option(..., "--video", exists=True, readable=True, help="Path to input video"),
+    video: Optional[Path] = typer.Option(None, "--video", exists=True, readable=True, help="Path to input video"),
+    camera: Optional[int] = typer.Option(None, "--camera", min=0, help="Camera index for live capture"),
+    stream_url: Optional[str] = typer.Option(None, "--stream-url", help="URL of an MJPEG camera stream"),
     board_model: Optional[Path] = typer.Option(None, "--board-model", help="Path to the board model"),
     piece_model: Optional[Path] = typer.Option(None, "--piece-model", help="Path to the piece model"),
     out: Optional[Path] = typer.Option(None, "--out", help="Path for output PGN"),
@@ -54,6 +56,17 @@ def run(
     """
     Runs video inferencing and outputs PGN.
     """
+    selected_sources = sum(source is not None for source in (video, camera, stream_url))
+    if selected_sources != 1:
+        raise typer.BadParameter("Provide exactly one of --video, --camera, or --stream-url")
+
+    if camera is not None:
+        source: str | int = camera
+    elif stream_url is not None:
+        source = stream_url
+    else:
+        source = str(video)
+
     out_path = out if out else default_pgn_out_path(video)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -61,7 +74,7 @@ def run(
     pieces_path = piece_model if valid_model(model=piece_model) else find_model('pieces')
     typer.echo(f"Using models:  {board_path}, {pieces_path}")
 
-    run_video_to_pgn(video=str(video),
+    run_video_to_pgn(source=source,
                      out=str(out_path),
                      board_model=str(board_path),
                      piece_model=str(pieces_path),
